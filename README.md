@@ -1,92 +1,190 @@
-# Telegram Community Bot (MVP)
+# Academy Essence — Telegram Community Bot
 
-MVP-реалізація під ваше ТЗ:
-- Telegram-бот (через webhook)
-- Онбординг (ПІБ, email, contact)
-- Сегментація `guest/member`
-- Реєстрація на події
-- Каркас оплати через WayForPay + callback
-- Нагадування по етапах
-- Адмін-панель у web (`/admin`) з лінком через команду `/admin` у Telegram
-- Каркас інтеграції у SendPulse CRM
+A FastAPI-based Telegram bot and admin panel for community event registration, payments, support chats, and CRM sync.
 
-## 1) Швидкий старт
+## Features
 
-1. Скопіюйте `.env.example` в `.env` і заповніть значення.
-2. Встановіть залежності: `pip install -r requirements.txt`
-3. Запустіть: `python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000`
+- Telegram bot (long polling or webhook)
+- Onboarding (full name, phone)
+- Roles: `lead` / `guest` / `member`
+- Event registration with seats, waitlist, RSVP
+- WayForPay payments (events + membership)
+- Discount pricing per role (guest / lead / member)
+- Reminder pipeline (unpaid, RSVP, 24h, 3h)
+- Web admin panel (`/admin`) with signed access link from Telegram
+- Live chats, support inbox, broadcasts, push messages
+- Excel import/export
+- SendPulse CRM contact sync
 
-**VPS без домену:** у `.env` вкажіть `USE_POLLING=true` та `ADMIN_PUBLIC_URL=http://ВАША_VPS_IP:8000`, щоб кнопка «Відкрити адмін-панель» працювала.
+## Stack
 
-## 2) Telegram: polling (без домену) або webhook
+- Python 3 + FastAPI + Uvicorn
+- SQLite
+- Jinja2 admin templates
+- Telegram Bot API
+- WayForPay API
+- SendPulse API
 
-**Без домену** — використовується long polling. У `.env` вкажіть:
-- `USE_POLLING=true`
-- `APP_BASE_URL=http://ВАШ_VPS_IP:8000` (для посилання /admin)
+## Quick start
 
-Webhook налаштовувати не потрібно.
+1. Copy env file and fill values:
 
-**З доменом і HTTPS** — встановіть `USE_POLLING=false` і налаштуйте webhook:
+```bash
+cp .env.example .env
 ```
-POST https://api.telegram.org/bot<TOKEN>/setWebhook
-Body: {"url":"https://your-domain.com/telegram/webhook","secret_token":"..."}
+
+2. Install dependencies:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-## 3) WayForPay
+3. Run the app:
 
-**Потік оплати за події:**
-1. Адмін створює подію в панелі з ціною (гость / учасник)
-2. Подія з'являється в боті у юзерів
-3. Юзер натискає «Зареєструватися» → кнопка «💳 Оплатити» з посиланням на WayForPay
-4. Ціна береться з події (guest_price_uah або member_price_uah)
+```bash
+./run.sh
+# or
+python3 -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
 
-В `.env` потрібно задати:
-- `WAYFORPAY_MERCHANT_LOGIN`
-- `WAYFORPAY_SECRET_KEY`
-- `WAYFORPAY_RETURN_URL` — куди повертати після оплати
-- `WAYFORPAY_SERVICE_URL` — callback для підтвердження (напр. `https://your-domain.com/wayforpay/callback`)
+Open: `http://localhost:8000/admin`
 
-Callback endpoint: `/wayforpay/callback`. Для роботи WayForPay потрібен публічний HTTPS-домен.
+## Environment variables
 
-## 4) SendPulse CRM (інтегровано)
+See `.env.example`. Required / important keys:
 
-Контакти автоматично синхронізуються в SendPulse Addressbook «Community Bot Contacts»:
-- при завершенні онбордингу
-- при оплаті
-- при надсиланні фідбеку
-- при підтвердженні учасника
+| Variable | Purpose |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | Bot token from BotFather |
+| `TELEGRAM_WEBHOOK_SECRET` | Secret for webhook mode |
+| `ADMIN_TELEGRAM_IDS` | Comma-separated Telegram user IDs with admin access |
+| `ADMIN_SUPPORT_NOTIFY_CHAT_ID` | Group/topic for support notifications |
+| `APP_SECRET_KEY` | Signing key for admin tokens |
+| `APP_BASE_URL` | Public base URL used in payment/media links |
+| `ADMIN_PUBLIC_URL` | Optional public URL for admin links (VPS IP/domain) |
+| `USE_POLLING` | `true` for VPS without HTTPS domain |
+| `WAYFORPAY_MERCHANT_LOGIN` | WayForPay merchant login |
+| `WAYFORPAY_SECRET_KEY` | WayForPay secret key |
+| `WAYFORPAY_RETURN_URL` | Browser return URL after payment |
+| `WAYFORPAY_SERVICE_URL` | Payment callback URL (`/wayforpay/callback`) |
+| `SENDPULSE_API_KEY` | SendPulse API key (or OAuth pair below) |
+| `SENDPULSE_CLIENT_ID` / `SENDPULSE_CLIENT_SECRET` | Optional OAuth credentials |
+| `SENDPULSE_ADDRESSBOOK_ID` | Optional address book ID |
 
-**Налаштування в `.env` (один із варіантів):**
+Never commit real secrets. Keep production values only on the server.
 
-1. **API Key** — `SENDPULSE_API_KEY` з SendPulse (Settings → API → API keys). Використовується як Bearer token.
+## Telegram modes
 
-2. **OAuth** — якщо API key не працює:
-   - `SENDPULSE_CLIENT_ID`
-   - `SENDPULSE_CLIENT_SECRET`
+### Polling (no domain)
 
-3. **Адресна книга** — `SENDPULSE_ADDRESSBOOK_ID` (опційно). Якщо не вказано, створюється книга «Community Bot Contacts».
+```env
+USE_POLLING=true
+APP_BASE_URL=http://YOUR_VPS_IP:8000
+ADMIN_PUBLIC_URL=http://YOUR_VPS_IP:8000
+```
 
-**Якщо дані не передаються:**
-- Перевірте, що ключ/токен дійсний у SendPulse.
-- Перегляньте логи — помилки API виводяться з префіксом `[SendPulse]`.
-- Спробуйте OAuth замість API key, якщо отримуєте 401.
+No webhook setup required.
 
-## 5) Команди бота (MVP)
+### Webhook (HTTPS domain)
 
-- `/start` — старт онбордингу.
-- `/events` — список майбутніх подій.
-- `/register_event <id>` — реєстрація на подію.
-- `/admin` — для admin IDs повертає одноразове посилання в адмін-панель.
+```env
+USE_POLLING=false
+```
 
-## 6) Що реалізовано як каркас (для розширення)
+Set webhook:
 
-- Ролі `guest/member/admin`.
-- Етапи нагадувань через таблицю `reminders` + воркер.
-- База SQLite: `users`, `events`, `registrations`, `feedback`, `reminders`.
-- Адмін-лендінг + dashboard + створення подій.
+```bash
+curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://your-domain.com/telegram/webhook","secret_token":"<TELEGRAM_WEBHOOK_SECRET>"}'
+```
 
-## 7) Важливо по безпеці
+## Payments (WayForPay)
 
-- Не зберігайте продакшн-токени у коді.
-- Рекомендується негайно перевипустити токен Telegram, якщо він вже публічно передавався.
-- Для продакшну додайте HTTPS, rate limiting, audit logs, шифрування backup.
+Flow:
+
+1. Admin creates an event with base prices and optional discount prices.
+2. User opens the event in the bot and registers.
+3. Bot shows a pay button with a WayForPay invoice/custom payment URL.
+4. Payment confirmation arrives via callback and/or status polling.
+5. On successful event payment, `lead` becomes `guest` (members stay members).
+
+Per-event payment URLs can be set for:
+
+- guest
+- lead
+- member
+
+Membership payment URL can be assigned when approving applications.
+
+Callback endpoint: `POST /wayforpay/callback`
+
+## SendPulse CRM
+
+Contacts are synced on:
+
+- onboarding completion
+- successful payment
+- membership approval
+- feedback submission
+
+If sync fails, check logs prefixed with `[SendPulse]`.
+
+## Bot commands
+
+- `/start` — start / resume onboarding (supports event deep-links)
+- `/events` — upcoming events
+- `/register_event <id>` — register for an event
+- `/admin` — one-time signed admin panel link (admin IDs only)
+
+## Admin panel
+
+Access via `/admin` command in Telegram (for IDs listed in `ADMIN_TELEGRAM_IDS`).
+
+Main sections:
+
+- Dashboard / events
+- Funnel
+- Applications
+- Broadcast / Push / Reminders
+- Live chats / Support
+- Tags / Membership / Bot menu
+- Excel import
+
+## Project structure
+
+```text
+app/
+  main.py              # FastAPI app, bot handlers, admin routes
+  config.py            # env settings
+  database.py          # SQLite schema + migrations
+  services/
+    telegram_api.py    # Telegram helpers
+    wayforpay.py       # invoices + callbacks
+    sendpulse.py       # CRM sync
+    reminders.py       # reminder scheduling
+templates/             # admin UI
+uploads/               # media uploads
+.env.example           # env template
+run.sh                 # start script
+```
+
+## Restart on VPS
+
+```bash
+cd /root/bot_academy.essence && pkill -f "run.sh|uvicorn app.main:app|python3 -m app.main|python3 app/main.py" ; nohup ./run.sh >> bot.log 2>&1 & disown
+```
+
+Check process:
+
+```bash
+pgrep -af "uvicorn app.main:app"
+```
+
+## Security notes
+
+- Do not store production tokens in the repository.
+- Rotate Telegram / WayForPay / SendPulse credentials if they were ever shared.
+- For production: HTTPS, restricted admin IDs, backups, and log monitoring.

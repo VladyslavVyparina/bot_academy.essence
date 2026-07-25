@@ -2,5 +2,11 @@
 __pycache__/
 *.pyc
 .env
+.env.local
+.env.*.local
 bot.db
+*.db-journal
+bot.log
+*.log
 uploads/
+.DS_Store
