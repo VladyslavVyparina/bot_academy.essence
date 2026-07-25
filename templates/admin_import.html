@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Iмпорт Excel — Community Bot</title>
+  {% include "_admin_design_system.html" %}
+</head>
+<body>
+  <div class="header">
+    <h1>Iмпорт бази учасникiв</h1>
+    <p>Завантажте Excel файл, щоб масово позначити користувачiв як «Учасник»</p>
+  </div>
+
+  {% if imported %}
+  <div class="card">
+    <p class="ok"><i data-lucide="check-circle" style="width:14px;height:14px;vertical-align:-2px;"></i> Оновлено користувачiв: <strong>{{ imported }}</strong></p>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title"><i data-lucide="upload-cloud"></i> Завантажити файл</div>
+    </div>
+
+    <div class="steps">
+      <ol>
+        <li>Пiдготуйте файл <code>.xlsx</code> з колонкою <strong>phone</strong> або <strong>телефон</strong></li>
+        <li>Номери будуть зiставленi з базою за Telegram</li>
+        <li>Вiдповiднi користувачi отримають статус <span class="badge badge-success">Учасник</span></li>
+      </ol>
+    </div>
+
+    <form method="post" action="/admin/import/excel" enctype="multipart/form-data">
+      <input type="hidden" name="token" value="{{ token }}" />
+
+      <div class="form-row">
+        <label>Excel файл (.xlsx, .xls)</label>
+        <input type="file" name="file" accept=".xlsx,.xls" required />
+      </div>
+
+      <div class="btn-row">
+        <button type="submit" class="btn btn-primary"><i data-lucide="upload"></i> Iмпортувати</button>
+      </div>
+    </form>
+  </div>
+</body>
+</html>

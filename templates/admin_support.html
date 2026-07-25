@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Підтримка — Адмін</title>
+  {% include "_admin_design_system.html" %}
+  <style>
+    .chat { display: flex; flex-direction: column; gap: 8px; max-height: min(520px, 60vh); overflow-y: auto; }
+    .msg.bot-outbound { border-style: dashed; opacity: 0.95; }
+    .attach-row { display: flex; align-items: flex-start; gap: 8px; }
+    .file-side { width: 220px; flex-shrink: 0; }
+    .file-side input[type="file"] { width: 100%; }
+    .attach-name { margin-top: 4px; font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .clip-wrap { display: inline-flex; margin-left: 8px; }
+    .support-tabs { display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+    .support-tabs a {
+      padding: 6px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color);
+      text-decoration: none; color: var(--text-primary); font-size: 12px;
+    }
+    .support-tabs a.active { border-color: var(--color-primary); color: var(--color-primary); }
+    .archived-badge { font-size: 11px; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  {% if full_admin %}
+  <a href="/admin?token={{ token }}" class="btn btn-back">← Назад</a>
+  {% else %}
+  <a href="/admin" class="btn btn-back">← Вхід в адмінку</a>
+  {% endif %}
+  <h1>Підтримка</h1>
+
+  {% if full_admin %}
+  <nav class="support-tabs">
+    <a href="/admin/support?token={{ token }}&tab=active" class="{{ 'active' if tab == 'active' else '' }}">Активні чати</a>
+    <a href="/admin/support?token={{ token }}&tab=archive" class="{{ 'active' if tab == 'archive' else '' }}">Архів</a>
+  </nav>
+  {% endif %}
+
+  {% if thread %}
+  <div class="card">
+    <h2>Чат з {{ user.full_name or 'Користувач' }} ({{ user.tg_display }})</h2>
+    {% if thread_archived %}
+    <p class="archived-badge">Цей чат у архіві — відповіді недоступні.</p>
+    {% endif %}
+    <div id="chat" class="chat">
+      {% for m in messages %}
+      <div class="msg {% if m.content_type == 'bot_outbound' %}admin bot-outbound{% elif m.from_admin %}admin{% else %}user{% endif %}">
+        <div class="meta">{% if m.content_type == 'bot_outbound' %}Бот (клієнту){% elif m.from_admin %}Ви{% else %}Користувач{% endif %} · {{ m.created_at|dt_kyiv }}</div>
+        {% if m.content_type == 'photo' and m.content %}
+        <p><img src="{{ m.content }}" alt="Фото" style="max-width:200px; border-radius:8px;" /></p>
+        {% elif m.content_type == 'video' and m.content %}
+        <p><a href="{{ m.content }}" target="_blank">Відео</a></p>
+        {% elif m.content_type == 'document' and m.content %}
+        <p><a href="{{ m.content }}" target="_blank">Файл</a></p>
+        {% else %}
+        <p>{{ m.content }}</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% if not thread_archived %}
+    <form method="post" action="/admin/support/{{ thread.id }}/reply" id="reply-form" enctype="multipart/form-data">
+      <input type="hidden" name="token" value="{{ token }}" />
+      <div class="form-row">
+        <label>Тип повідомлення</label>
+        <div style="display:flex;align-items:center;">
+          <select name="media_type" id="media-type">
+            <option value="text">Тільки текст</option>
+            <option value="photo">Фото + текст</option>
+            <option value="video">Відео + текст</option>
+            <option value="document">Файл + текст</option>
+          </select>
+          <div class="clip-wrap">
+            <button type="button" id="support-clip" class="btn">📎</button>
+          </div>
+        </div>
+        <div id="support-clip-list" style="display:none;gap:6px;flex-wrap:wrap;margin:6px 0;">
+          <button type="button" class="btn btn-small" data-type="photo">Фото</button>
+          <button type="button" class="btn btn-small" data-type="video">Відео</button>
+          <button type="button" class="btn btn-small" data-type="document">Файл</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Текст (макс. <span id="max-hint">4096</span> символів) — <span id="char-count">0</span></label>
+        <div class="attach-row">
+          <textarea name="message" placeholder="Введіть текст..." id="msg-input" maxlength="4096"></textarea>
+          <div id="file-side" class="file-side" style="display:none;">
+            <label for="attach-input">Виберіть файл(и)</label>
+            <input id="attach-input" type="file" name="attachment_files" multiple />
+          </div>
+        </div>
+        <div id="attach-name" class="attach-name">Без вкладення</div>
+        <div id="support-attach-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;"></div>
+      </div>
+      <div class="form-row" id="photo-row" style="display:none;">
+        <label>Файл фото</label>
+        <input type="file" name="photo_file" accept="image/*" />
+      </div>
+      <div class="form-row" id="video-row" style="display:none;">
+        <label>Файл відео</label>
+        <input type="file" name="video_file" accept="video/*" />
+      </div>
+      <button type="submit" class="btn btn-green">Надіслати</button>
+    </form>
+    <form method="post" action="/admin/support/{{ thread.id }}/archive" style="margin-top: 20px;" onsubmit="return confirm('Завершити чат? Користувач отримає прощальне повідомлення.');">
+      <input type="hidden" name="token" value="{{ token }}" />
+      <button type="submit" class="btn btn-red">Завершити чат</button>
+    </form>
+    {% endif %}
+  </div>
+  <script>
+    const mediaType = document.getElementById('media-type');
+    const photoRow = document.getElementById('photo-row');
+    const videoRow = document.getElementById('video-row');
+    const msgInput = document.getElementById('msg-input');
+    const charCount = document.getElementById('char-count');
+    const maxHint = document.getElementById('max-hint');
+    const attachInput = document.getElementById('attach-input');
+    const attachName = document.getElementById('attach-name');
+    const fileSide = document.getElementById('file-side');
+    const clipBtn = document.getElementById('support-clip');
+    const clipList = document.getElementById('support-clip-list');
+    const previewEl = document.getElementById('support-attach-preview');
+    function setInputFiles(input, files) {
+      if (typeof DataTransfer === 'undefined') return;
+      const dt = new DataTransfer();
+      files.forEach(f => dt.items.add(f));
+      input.files = dt.files;
+    }
+    function updateAttachUi(files) {
+      if (!files.length) {
+        attachName.textContent = 'Без вкладення';
+        previewEl.innerHTML = '';
+        return;
+      }
+      if (files.length === 1) attachName.textContent = 'Вкладення: ' + files[0].name;
+      else attachName.textContent = 'Вкладення: ' + files.length + ' файлів';
+      renderPreview(files);
+    }
+    function renderPreview(files) {
+      previewEl.innerHTML = '';
+      files.forEach(function(f, idx) {
+        const box = document.createElement('div');
+        box.className = 'attach-preview-item';
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'attach-remove-btn';
+        removeBtn.textContent = '×';
+        removeBtn.onclick = function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          const current = attachInput.files ? Array.from(attachInput.files) : [];
+          current.splice(idx, 1);
+          setInputFiles(attachInput, current);
+          updateAttachUi(current);
+        };
+        box.appendChild(removeBtn);
+        if ((f.type || '').startsWith('image/')) {
+          const img = document.createElement('img');
+          img.src = URL.createObjectURL(f);
+          img.className = 'attach-preview-media';
+          box.appendChild(img);
+        } else if ((f.type || '').startsWith('video/')) {
+          const v = document.createElement('video');
+          v.controls = true;
+          v.src = URL.createObjectURL(f);
+          v.className = 'attach-preview-media';
+          box.appendChild(v);
+        }
+        const t = document.createElement('div');
+        t.className = 'hint';
+        t.textContent = f.name;
+        box.appendChild(t);
+        previewEl.appendChild(box);
+      });
+    }
+    function update() {
+      const isMedia = mediaType.value !== 'text';
+      const max = isMedia ? 1024 : 4096;
+      if (isMedia && msgInput.value.length > max) msgInput.value = msgInput.value.substring(0, max);
+      msgInput.maxLength = max;
+      maxHint.textContent = max;
+      charCount.textContent = msgInput.value.length;
+      charCount.style.color = msgInput.value.length > max ? 'red' : '';
+    }
+    mediaType.onchange = function() {
+      photoRow.style.display = 'none';
+      videoRow.style.display = 'none';
+      fileSide.style.display = this.value === 'text' ? 'none' : 'block';
+      if (this.value === 'photo') attachInput.accept = 'image/*';
+      else if (this.value === 'video') attachInput.accept = 'video/*';
+      else attachInput.accept = '';
+      if (this.value === 'text') previewEl.innerHTML = '';
+      update();
+    };
+    attachInput.onchange = function() {
+      const files = attachInput.files ? Array.from(attachInput.files) : [];
+      updateAttachUi(files);
+    };
+    clipBtn.onclick = function() {
+      clipList.style.display = clipList.style.display === 'flex' ? 'none' : 'flex';
+    };
+    clipList.querySelectorAll('button[data-type]').forEach(function(btn) {
+      btn.onclick = function() {
+        mediaType.value = btn.getAttribute('data-type');
+        clipList.style.display = 'none';
+        mediaType.onchange();
+        attachInput.click();
+      };
+    });
+    msgInput.oninput = update;
+    update();
+  </script>
+  {% if not thread_archived %}
+  <script>
+    const chatEl = document.getElementById('chat');
+    let lastSeenId = {{ messages[-1].id if messages else 0 }};
+    const pollToken = {{ token|tojson }};
+    function poll() {
+      fetch('/admin/support/{{ thread.id }}/messages?token=' + encodeURIComponent(pollToken) + '&after=' + lastSeenId)
+        .then(r => r.json())
+        .then(data => {
+          if (data.messages && data.messages.length) {
+            data.messages.forEach(m => {
+              lastSeenId = Math.max(lastSeenId, m.id);
+              const div = document.createElement('div');
+              const kind = m.kind || (m.content_type === 'bot_outbound' ? 'bot' : (m.from_admin ? 'admin' : 'user'));
+              const cls = kind === 'bot' ? 'msg admin bot-outbound' : (m.from_admin ? 'msg admin' : 'msg user');
+              div.className = cls;
+              const who = kind === 'bot' ? 'Бот (клієнту)' : (m.from_admin ? 'Ви' : 'Користувач');
+              let cnt = (m.content || '').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+              if (m.content_type === 'photo' && m.content) cnt = '<img src="' + m.content + '" alt="Фото" style="max-width:200px; border-radius:8px;" />';
+              else if (m.content_type === 'video' && m.content) cnt = '<a href="' + m.content + '" target="_blank">Відео</a>';
+              else if (m.content_type === 'document' && m.content) cnt = '<a href="' + m.content + '" target="_blank">Файл</a>';
+              div.innerHTML = '<div class="meta">' + who + ' · ' + m.created_at + '</div><p>' + cnt + '</p>';
+              chatEl.appendChild(div);
+            });
+            chatEl.scrollTop = chatEl.scrollHeight;
+          }
+        }).catch(() => {});
+    }
+    setInterval(poll, 3000);
+  </script>
+  {% endif %}
+  {% else %}
+  {% if full_admin %}
+  <div class="card">
+    <p>Оберіть чат з користувачем:</p>
+    <div class="thread-list">
+      {% if tab == 'archive' %}
+        {% for t in archived_threads %}
+        <div class="thread-item">
+          <a href="/admin/support?token={{ token }}&thread_id={{ t.id }}&tab=archive">{{ t.full_name or 'Користувач' }} ({{ t.tg_display }})</a>
+          <span class="badge">Архів</span>
+        </div>
+        {% else %}
+        <p style="color: var(--gray);">Архів порожній</p>
+        {% endfor %}
+      {% else %}
+        {% for t in threads %}
+        <div class="thread-item">
+          <a href="/admin/support?token={{ token }}&thread_id={{ t.id }}">{{ t.full_name or 'Користувач' }} ({{ t.tg_display }})</a>
+          <span class="badge">Відкритий</span>
+        </div>
+        {% else %}
+        <p style="color: var(--gray);">Немає активних чатів</p>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+  <div class="card"><p>Чат не знайдено або посилання недійсне.</p></div>
+  {% endif %}
+  {% endif %}
+</body>
+</html>

@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Меню бота — Community Bot</title>
+  {% include "_admin_design_system.html" %}
+</head>
+<body>
+  <div class="header">
+    <h1>Меню бота, deep-link, таймлайн</h1>
+    <p>Налаштування загальних параметрiв бота та автоматичних нагадувань</p>
+  </div>
+
+  <form method="post" action="/admin/bot-menu/update">
+    <input type="hidden" name="token" value="{{ token }}" />
+
+    <!-- Telegram -->
+    <div class="card">
+      <div class="cb-card-header">
+        <div class="cb-card-title"><i data-lucide="send"></i> Telegram</div>
+      </div>
+
+      <div class="form-row">
+        <label>Username бота (без @)</label>
+        <input type="text" name="telegram_bot_username" value="{{ telegram_bot_username }}" placeholder="my_academy_bot" />
+        <p class="hint">Deep-link: <code>https://t.me/{{ telegram_bot_username or 'USERNAME' }}?start=e5</code> або <code>?start=e5_facebook</code> (джерело в <code>users.deeplink_source</code>)</p>
+      </div>
+    </div>
+
+    <!-- Menu -->
+    <div class="card">
+      <div class="cb-card-header">
+        <div class="cb-card-title"><i data-lucide="menu"></i> Меню (ТЗ §8)</div>
+      </div>
+
+      <div class="form-row">
+        <label>Про академiю (текст)</label>
+        <textarea name="academy_about_text" placeholder="Коротко про академiю…">{{ academy_about_text }}</textarea>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-row">
+          <label>URL публiчноi оферти / полiтик</label>
+          <input type="text" name="policy_url" value="{{ policy_url }}" placeholder="https://…" />
+        </div>
+        <div class="form-row">
+          <label>Менеджер (URL або текст)</label>
+          <input type="text" name="manager_contact" value="{{ manager_contact }}" placeholder="https://t.me/…" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Reminder templates -->
+    <div class="card">
+      <div class="cb-card-header">
+        <div class="cb-card-title"><i data-lucide="bell"></i> Шаблони нагадувань до подii (глобально)</div>
+      </div>
+      <p class="hint">Плейсхолдери: <code>{title}</code> <code>{datetime}</code> <code>{location}</code> <code>{zoom}</code>. Порожньо — вбудований дефолт. Перевизначення для конкретноi подii — у картцi подii в адмiнцi.</p>
+
+      <div class="form-row">
+        <label>~40 год (RSVP)</label>
+        <textarea name="default_msg_rsvp_40h" rows="2">{{ default_msg_rsvp_40h }}</textarea>
+      </div>
+      <div class="form-row">
+        <label>~24 год</label>
+        <textarea name="default_msg_remind_24h" rows="3">{{ default_msg_remind_24h }}</textarea>
+      </div>
+      <div class="form-row">
+        <label>~3 год</label>
+        <textarea name="default_msg_remind_3h" rows="2">{{ default_msg_remind_3h }}</textarea>
+      </div>
+    </div>
+
+    <!-- Auto chains -->
+    <div class="card">
+      <div class="cb-card-header">
+        <div class="cb-card-title"><i data-lucide="zap"></i> Автоланцюги до подii (1 = увiмкн.)</div>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Нагадування RSVP ~40 год</label>
+          <input type="number" name="timeline_rsvp_40_enabled" value="{{ timeline_rsvp_40_enabled }}" min="0" max="1" />
+        </div>
+        <div class="form-row">
+          <label>Нагадування ~24 год</label>
+          <input type="number" name="timeline_24h_enabled" value="{{ timeline_24h_enabled }}" min="0" max="1" />
+        </div>
+        <div class="form-row">
+          <label>Нагадування ~3 год</label>
+          <input type="number" name="timeline_3h_enabled" value="{{ timeline_3h_enabled }}" min="0" max="1" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Quiet hours -->
+    <div class="card">
+      <div class="cb-card-header">
+        <div class="cb-card-title"><i data-lucide="moon"></i> Тихi години</div>
+      </div>
+      <p class="hint">Не надсилати користувачам таймлайн-повiдомлення. Дайджест адмiнам у тихi години все одно вiдправляеться.</p>
+
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Увiмкнути (1/0)</label>
+          <input type="number" name="quiet_hours_enabled" value="{{ quiet_hours_enabled }}" min="0" max="1" />
+        </div>
+        <div class="form-row">
+          <label>Початок (година 0–23)</label>
+          <input type="number" name="quiet_hours_start" value="{{ quiet_hours_start }}" min="0" max="23" placeholder="22" />
+        </div>
+        <div class="form-row">
+          <label>Кiнець (година 0–23)</label>
+          <input type="number" name="quiet_hours_end" value="{{ quiet_hours_end }}" min="0" max="23" placeholder="8" />
+        </div>
+        <div class="form-row">
+          <label>Часовий пояс (IANA)</label>
+          <input type="text" name="quiet_hours_tz" value="{{ quiet_hours_tz }}" placeholder="Europe/Kyiv" />
+        </div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button type="submit" class="btn btn-primary"><i data-lucide="save"></i> Зберегти все</button>
+    </div>
+  </form>
+</body>
+</html>

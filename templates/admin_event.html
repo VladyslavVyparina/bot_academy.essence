@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ event.title }} — Community Bot</title>
+  {% include "_admin_design_system.html" %}
+</head>
+<body>
+  <div class="header">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <div>
+        <h1>{{ event.title }}</h1>
+        <p><i data-lucide="calendar" style="width:12px;height:12px;vertical-align:-1px;"></i> {{ event.starts_at|dt_kyiv }} · <span class="badge badge-info">{{ event.event_type }}</span></p>
+      </div>
+      <div class="form-actions-row">
+        <a href="/admin/export?token={{ token }}&segment=event&event_id={{ event.id }}" class="btn btn-green"><i data-lucide="download"></i> Експорт Excel</a>
+        {% if event.status != 'archived' %}
+        <form method="post" action="/admin/events/{{ event.id }}/archive" onsubmit="return confirm('Архівувати цю подію?');" style="display:inline;">
+          <input type="hidden" name="token" value="{{ token }}" />
+          <button type="submit" class="btn btn-red"><i data-lucide="archive"></i> В архів</button>
+        </form>
+        {% else %}
+        <form method="post" action="/admin/events/{{ event.id }}/restore" style="display:inline-flex;align-items:center;gap:8px;">
+          <input type="hidden" name="token" value="{{ token }}" />
+          <input type="datetime-local" name="starts_at" value="{{ event.starts_at|dt_input_kyiv if event.starts_at else '' }}" required style="width:220px;" />
+          <button type="submit" class="btn btn-green"><i data-lucide="rotate-ccw"></i> Відновити</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Segments summary -->
+  {% if seg %}
+  <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));">
+    <div class="stat-card cb-stat-accent">
+      <div class="cb-stat-label">Всього</div>
+      <div class="cb-stat-value">{{ seg.all }}</div>
+      <div class="cb-stat-sub">Реестрацiй</div>
+    </div>
+    <div class="stat-card">
+      <div class="cb-stat-label">Оплатили</div>
+      <div class="cb-stat-value" style="color: var(--color-success);">{{ seg.paid }}</div>
+      <div class="cb-stat-sub">Пiдтверджено</div>
+    </div>
+    <div class="stat-card">
+      <div class="cb-stat-label">Не оплатили</div>
+      <div class="cb-stat-value" style="color: var(--color-danger);">{{ seg.unpaid }}</div>
+      <div class="cb-stat-sub">В очiкуваннi</div>
+    </div>
+    <div class="stat-card">
+      <div class="cb-stat-label">«Буду»</div>
+      <div class="cb-stat-value" style="color: var(--color-info);">{{ seg.confirmed }}</div>
+      <div class="cb-stat-sub">Пiдтвердили</div>
+    </div>
+    <div class="stat-card">
+      <div class="cb-stat-label">Без RSVP</div>
+      <div class="cb-stat-value" style="color: var(--color-warning);">{{ seg.noconf }}</div>
+      <div class="cb-stat-sub">Оплатили</div>
+    </div>
+    {% if seg.seats_free is not none %}
+    <div class="stat-card">
+      <div class="cb-stat-label">Вiльно</div>
+      <div class="cb-stat-value">{{ seg.seats_free }}</div>
+      <div class="cb-stat-sub">Мiсць</div>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- Deep-link -->
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title"><i data-lucide="link"></i> Deep-link для реклами</div>
+    </div>
+    {% if event_deeplink %}
+    <p>Посилання в Telegram (подiя + опцiйно джерело пiсля <code>_</code>):</p>
+    <code style="display:block;padding:10px;background:var(--bg-input);border:1px solid var(--border-color);border-radius:var(--radius);word-break:break-all;margin:6px 0;">{{ event_deeplink }}</code>
+    <p class="hint">З джерелом для аналiтики: додайте <code>_facebook</code> пiсля id, напр. <code>?start=e{{ event.id }}_facebook</code></p>
+    {% else %}
+    <p class="err"><i data-lucide="alert-circle" style="width:14px;height:14px;vertical-align:-2px;"></i> Вкажiть username бота: <a href="/admin/bot-menu?token={{ token }}">Меню бота</a></p>
+    {% endif %}
+  </div>
+
+  <!-- Edit event -->
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title"><i data-lucide="edit-3"></i> Редагувати подiю</div>
+    </div>
+    <form method="post" action="/admin/events/{{ event.id }}/update" enctype="multipart/form-data">
+      <input type="hidden" name="token" value="{{ token }}" />
+
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Назва</label>
+          <input type="text" name="title" value="{{ event.title }}" required />
+        </div>
+        <div class="form-row">
+          <label>Дата/час</label>
+          <input type="datetime-local" name="starts_at" value="{{ event.starts_at|dt_input_kyiv if event.starts_at else '' }}" required />
+        </div>
+        <div class="form-row">
+          <label>Цiна гiсть (грн)</label>
+          <input type="number" name="guest_price_uah" value="{{ event.guest_price_uah }}" min="0" />
+        </div>
+        <div class="form-row">
+          <label>Цiна лiд (грн)</label>
+          <input type="number" name="lead_price_uah" value="{{ event.lead_price_uah if event.lead_price_uah is not none else event.guest_price_uah }}" min="0" />
+        </div>
+        <div class="form-row">
+          <label>Цiна учасник (грн)</label>
+          <input type="number" name="member_price_uah" value="{{ event.member_price_uah }}" min="0" />
+        </div>
+        <div class="form-row">
+          <label>Цiна зі знижкою для гостя (грн)</label>
+          <input type="number" name="guest_discount_price_uah" value="{{ event.guest_discount_price_uah if event.guest_discount_price_uah is not none else '' }}" min="0" />
+        </div>
+        <div class="form-row">
+          <label>Цiна зі знижкою для лiда (грн)</label>
+          <input type="number" name="lead_discount_price_uah" value="{{ event.lead_discount_price_uah if event.lead_discount_price_uah is not none else '' }}" min="0" />
+        </div>
+        <div class="form-row">
+          <label>Цiна зі знижкою для учасника (грн)</label>
+          <input type="number" name="member_discount_price_uah" value="{{ event.member_discount_price_uah if event.member_discount_price_uah is not none else '' }}" min="0" />
+        </div>
+        <div class="form-row">
+          <label>Локацiя</label>
+          <input type="text" name="location" value="{{ event.location or '' }}" />
+        </div>
+        <div class="form-row">
+          <label>Zoom URL</label>
+          <input type="text" name="zoom_url" value="{{ event.zoom_url or '' }}" />
+        </div>
+        <div class="form-row">
+          <label>Лiмiт мiсць</label>
+          <input type="number" name="seats_limit" value="{{ event.seats_limit or 0 }}" min="0" />
+        </div>
+        <div class="form-row">
+          <label>Посилання оплати для гостя</label>
+          <input type="text" name="wayforpay_guest_url" value="{{ event.wayforpay_guest_url or '' }}" placeholder="https://... або шаблон з {order_ref}" />
+        </div>
+        <div class="form-row">
+          <label>Посилання оплати для учасника</label>
+          <input type="text" name="wayforpay_member_url" value="{{ event.wayforpay_member_url or '' }}" placeholder="https://... або шаблон з {order_ref}" />
+        </div>
+        <div class="form-row">
+          <label>Посилання оплати для лiда</label>
+          <input type="text" name="wayforpay_lead_url" value="{{ event.wayforpay_lead_url or '' }}" placeholder="https://... або шаблон з {order_ref}" />
+        </div>
+        <div class="form-row">
+          <label>Список очiкування</label>
+          <select name="waitlist_enabled">
+            <option value="1" {% if (event.waitlist_enabled is none) or (event.waitlist_enabled == 1) %}selected{% endif %}>Увiмкнено</option>
+            <option value="0" {% if event.waitlist_enabled == 0 %}selected{% endif %}>Вимкнено</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Фото подii</label>
+          <input type="file" name="photo_file" accept="image/*" />
+        </div>
+        <div class="form-row">
+          <label>Вiдео подii</label>
+          <input type="file" name="video_file" accept="video/*" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>Опис</label>
+        <textarea name="description" rows="2">{{ event.description or '' }}</textarea>
+      </div>
+
+      <div class="form-row">
+        <label>Текст нагадування ~40 год (RSVP)</label>
+        <p class="hint" style="margin-top:0;margin-bottom:5px;">Плейсхолдери: <code>{title}</code> <code>{datetime}</code> <code>{location}</code> <code>{zoom}</code></p>
+        <textarea name="msg_rsvp_40h" rows="2" placeholder="Порожньо — з глобальних налаштувань">{{ event.msg_rsvp_40h or '' }}</textarea>
+      </div>
+      <div class="form-row">
+        <label>Текст ~24 год до подii</label>
+        <textarea name="msg_remind_24h" rows="3" placeholder="Порожньо — з глобальних">{{ event.msg_remind_24h or '' }}</textarea>
+      </div>
+      <div class="form-row">
+        <label>Текст ~3 год до подii</label>
+        <textarea name="msg_remind_3h" rows="2" placeholder="Порожньо — з глобальних">{{ event.msg_remind_3h or '' }}</textarea>
+      </div>
+
+      <div class="form-row">
+        <label>
+          <input type="checkbox" name="push_on_change" value="1" />
+          Надiслати пуш зареестрованим про змiни
+        </label>
+        <div style="display:flex;align-items:center;gap:8px;margin:6px 0;">
+          <select id="event-update-media-type" name="media_type">
+            <option value="text">Тільки текст</option>
+            <option value="photo">Фото + текст</option>
+            <option value="video">Відео + текст</option>
+            <option value="document">Файл + текст</option>
+          </select>
+          <button type="button" id="event-update-clip" class="btn">📎</button>
+        </div>
+        <div id="event-update-clip-list" style="display:none;gap:6px;flex-wrap:wrap;margin:6px 0;">
+          <button type="button" class="btn btn-small" data-type="photo">Фото</button>
+          <button type="button" class="btn btn-small" data-type="video">Відео</button>
+          <button type="button" class="btn btn-small" data-type="document">Файл</button>
+        </div>
+        <div id="event-update-file-side" style="display:none;max-width:280px;margin:6px 0;">
+          <label for="event-update-attach">Виберіть файл(и)</label>
+          <input id="event-update-attach" type="file" name="attachment_files" multiple />
+          <div id="event-update-attach-name" class="hint">Без вкладення</div>
+          <div id="event-update-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;"></div>
+        </div>
+        <textarea name="push_message" rows="2" placeholder="Текст про змiну подii...">Важлива змiна подii «{{ event.title }}». Перевiрте дату, час та локацiю.</textarea>
+      </div>
+
+      <div class="btn-row">
+        <button type="submit" class="btn btn-green"><i data-lucide="save"></i> Зберегти</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Check-in -->
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title"><i data-lucide="user-check"></i> Check-in (вiдмiтити присутнiх)</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ПIБ</th>
+            <th>Телефон</th>
+            <th>Email</th>
+            <th>Оплата</th>
+            <th>RSVP</th>
+            <th>Статус</th>
+            <th>Присутнiй</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in registrations %}
+          <tr>
+            <td><strong>{{ r.full_name or '—' }}</strong></td>
+            <td>{{ r.phone or '—' }}</td>
+            <td>{{ r.email or '—' }}</td>
+            <td>
+              {% if r.payment_status == 'paid' %}<span class="badge badge-success">paid</span>
+              {% elif r.payment_status == 'unpaid' %}<span class="badge badge-danger">unpaid</span>
+              {% else %}<span class="badge badge-info">{{ r.payment_status }}</span>{% endif %}
+            </td>
+            <td>
+              {% if r.rsvp_will_attend == 1 %}<span class="badge badge-success">Буду</span>
+              {% elif r.rsvp_will_attend == 0 %}<span class="badge badge-danger">Не буду</span>
+              {% else %}—{% endif %}
+            </td>
+            <td><span class="text-xs text-muted">{{ r.tz_status }}</span></td>
+            <td>
+              <form method="post" action="/admin/events/{{ event.id }}/checkin" style="display:inline;">
+                <input type="hidden" name="token" value="{{ token }}" />
+                <input type="hidden" name="reg_id" value="{{ r.id }}" />
+                <button type="submit" name="attended" value="{{ 0 if r.attended else 1 }}" class="btn btn-small {{ 'btn-green' if r.attended else '' }}">
+                  {% if r.attended %}<i data-lucide="check"></i> Прийшов{% else %}Вiдмiтити{% endif %}
+                </button>
+              </form>
+            </td>
+            <td>
+              <a href="/admin/push?token={{ token }}&user_id={{ r.user_id }}&event_id={{ event.id }}" class="btn btn-small"><i data-lucide="send"></i> Пуш</a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8">Немае реестрацiй</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title"><i data-lucide="zap"></i> Дii</div>
+    </div>
+
+    <form method="post" action="/admin/events/{{ event.id }}/feedback_request" style="margin-bottom: 12px;">
+      <input type="hidden" name="token" value="{{ token }}" />
+      <div class="btn-row">
+        <button type="submit" class="btn btn-green"><i data-lucide="star"></i> Надiслати запит на фiдбек (усiм присутнiм)</button>
+      </div>
+    </form>
+
+    <form method="post" action="/admin/events/{{ event.id }}/noshow_push" enctype="multipart/form-data">
+      <input type="hidden" name="token" value="{{ token }}" />
+      <div class="form-row">
+        <label>Тип повідомлення</label>
+        <div style="display:flex;align-items:center;">
+          <select id="noshow-media-type" name="media_type">
+            <option value="text">Тільки текст</option>
+            <option value="photo">Фото + текст</option>
+            <option value="video">Відео + текст</option>
+            <option value="document">Файл + текст</option>
+          </select>
+          <div style="display:inline-flex;margin-left:8px;">
+            <button type="button" id="noshow-clip" class="btn">📎</button>
+          </div>
+        </div>
+        <div id="noshow-clip-list" style="display:none;gap:6px;flex-wrap:wrap;margin:6px 0;">
+          <button type="button" class="btn btn-small" data-type="photo">Фото</button>
+          <button type="button" class="btn btn-small" data-type="video">Відео</button>
+          <button type="button" class="btn btn-small" data-type="document">Файл</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Пуш тим, хто не прийшов</label>
+        <div style="display:flex;align-items:flex-start;gap:8px;">
+          <textarea name="message" rows="2">Ви не зʼявилися на заходi. Чи можете пояснити причину?</textarea>
+          <div id="noshow-file-side" style="width:220px;display:none;flex-shrink:0;">
+            <label for="noshow-attach">Виберіть файл(и)</label>
+            <input id="noshow-attach" type="file" name="attachment_files" multiple />
+          </div>
+        </div>
+        <div id="noshow-attach-name" class="hint">Без вкладення</div>
+        <div id="noshow-attach-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;"></div>
+      </div>
+      <div class="btn-row">
+        <button type="submit" class="btn"><i data-lucide="send"></i> Надiслати пуш</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Feedback -->
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title"><i data-lucide="message-square"></i> Фiдбек по заходу</div>
+      <span class="badge badge-primary">{{ feedbacks|length }}</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ПIБ</th><th>Оцiнка</th><th>Вiдгук</th><th>Дата</th></tr></thead>
+        <tbody>
+          {% for f in feedbacks %}
+          <tr>
+            <td><strong>{{ f.full_name }}</strong></td>
+            <td><span class="badge badge-{% if f.rating >= 4 %}success{% elif f.rating >= 3 %}warning{% else %}danger{% endif %}">{{ f.rating }} / 5</span></td>
+            <td>{{ f.review_text or '—' }}</td>
+            <td><span class="text-xs mono text-muted">{{ f.created_at|dt_kyiv }}</span></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4">Немае фiдбеку</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <script>
+    (function() {
+      var typeSel = document.getElementById('noshow-media-type');
+      var side = document.getElementById('noshow-file-side');
+      var inp = document.getElementById('noshow-attach');
+      var nameEl = document.getElementById('noshow-attach-name');
+      var clip = document.getElementById('noshow-clip');
+      var clipList = document.getElementById('noshow-clip-list');
+      var preview = document.getElementById('noshow-attach-preview');
+      if (!typeSel || !side || !inp || !nameEl || !clip || !clipList || !preview) return;
+      function setInputFiles(input, files) {
+        if (typeof DataTransfer === 'undefined') return;
+        var dt = new DataTransfer();
+        files.forEach(function(f) { dt.items.add(f); });
+        input.files = dt.files;
+      }
+      function updateAttachUi(files) {
+        if (!files.length) {
+          nameEl.textContent = 'Без вкладення';
+          preview.innerHTML = '';
+          return;
+        }
+        if (files.length === 1) nameEl.textContent = 'Вкладення: ' + files[0].name;
+        else nameEl.textContent = 'Вкладення: ' + files.length + ' файлів';
+        renderPreview(files);
+      }
+      function renderPreview(files) {
+        preview.innerHTML = '';
+        files.forEach(function(f, idx) {
+          var box = document.createElement('div');
+          box.className = 'attach-preview-item';
+          var removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.className = 'attach-remove-btn';
+          removeBtn.textContent = '×';
+          removeBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var current = inp.files ? Array.from(inp.files) : [];
+            current.splice(idx, 1);
+            setInputFiles(inp, current);
+            updateAttachUi(current);
+          };
+          box.appendChild(removeBtn);
+          if ((f.type || '').startsWith('image/')) {
+            var img = document.createElement('img');
+            img.className = 'attach-preview-media';
+            img.src = URL.createObjectURL(f);
+            box.appendChild(img);
+          } else if ((f.type || '').startsWith('video/')) {
+            var v = document.createElement('video');
+            v.controls = true;
+            v.className = 'attach-preview-media';
+            v.src = URL.createObjectURL(f);
+            box.appendChild(v);
+          }
+          var t = document.createElement('div');
+          t.className = 'hint';
+          t.style.marginTop = '4px';
+          t.textContent = f.name;
+          box.appendChild(t);
+          preview.appendChild(box);
+        });
+      }
+      function sync() {
+        var need = typeSel.value !== 'text';
+        side.style.display = need ? 'block' : 'none';
+        if (typeSel.value === 'photo') inp.accept = 'image/*';
+        else if (typeSel.value === 'video') inp.accept = 'video/*';
+        else inp.accept = '';
+        if (!need) {
+          inp.value = '';
+          nameEl.textContent = 'Без вкладення';
+          preview.innerHTML = '';
+        }
+      }
+      inp.addEventListener('change', function() {
+        var files = inp.files ? Array.from(inp.files) : [];
+        updateAttachUi(files);
+      });
+      clip.addEventListener('click', function() {
+        clipList.style.display = clipList.style.display === 'flex' ? 'none' : 'flex';
+      });
+      clipList.querySelectorAll('button[data-type]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          typeSel.value = btn.getAttribute('data-type');
+          clipList.style.display = 'none';
+          sync();
+          inp.click();
+        });
+      });
+      typeSel.addEventListener('change', sync);
+      sync();
+    })();
+    (function() {
+      var typeSel = document.getElementById('event-update-media-type');
+      var clipBtn = document.getElementById('event-update-clip');
+      var clipList = document.getElementById('event-update-clip-list');
+      var side = document.getElementById('event-update-file-side');
+      var inp = document.getElementById('event-update-attach');
+      var nameEl = document.getElementById('event-update-attach-name');
+      var preview = document.getElementById('event-update-preview');
+      if (!typeSel || !clipBtn || !clipList || !side || !inp || !nameEl || !preview) return;
+      function setInputFiles(input, files) {
+        if (typeof DataTransfer === 'undefined') return;
+        var dt = new DataTransfer();
+        files.forEach(function(f) { dt.items.add(f); });
+        input.files = dt.files;
+      }
+      function updateAttachUi(files) {
+        if (!files.length) {
+          nameEl.textContent = 'Без вкладення';
+          preview.innerHTML = '';
+          return;
+        }
+        if (files.length === 1) nameEl.textContent = 'Вкладення: ' + files[0].name;
+        else nameEl.textContent = 'Вкладення: ' + files.length + ' файлів';
+        renderPreview(files);
+      }
+      function renderPreview(files) {
+        preview.innerHTML = '';
+        files.forEach(function(f, idx) {
+          var box = document.createElement('div');
+          box.className = 'attach-preview-item';
+          var removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.className = 'attach-remove-btn';
+          removeBtn.textContent = '×';
+          removeBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var current = inp.files ? Array.from(inp.files) : [];
+            current.splice(idx, 1);
+            setInputFiles(inp, current);
+            updateAttachUi(current);
+          };
+          box.appendChild(removeBtn);
+          if ((f.type || '').startsWith('image/')) {
+            var img = document.createElement('img');
+            img.className = 'attach-preview-media';
+            img.src = URL.createObjectURL(f);
+            box.appendChild(img);
+          } else if ((f.type || '').startsWith('video/')) {
+            var v = document.createElement('video');
+            v.controls = true;
+            v.className = 'attach-preview-media';
+            v.src = URL.createObjectURL(f);
+            box.appendChild(v);
+          }
+          var t = document.createElement('div');
+          t.className = 'hint';
+          t.style.marginTop = '4px';
+          t.textContent = f.name;
+          box.appendChild(t);
+          preview.appendChild(box);
+        });
+      }
+      function sync() {
+        var need = typeSel.value !== 'text';
+        side.style.display = need ? 'block' : 'none';
+        if (typeSel.value === 'photo') inp.accept = 'image/*';
+        else if (typeSel.value === 'video') inp.accept = 'video/*';
+        else inp.accept = '';
+        if (!need) {
+          inp.value = '';
+          nameEl.textContent = 'Без вкладення';
+          preview.innerHTML = '';
+        }
+      }
+      clipBtn.addEventListener('click', function() {
+        clipList.style.display = clipList.style.display === 'flex' ? 'none' : 'flex';
+      });
+      clipList.querySelectorAll('button[data-type]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          typeSel.value = btn.getAttribute('data-type');
+          clipList.style.display = 'none';
+          sync();
+          inp.click();
+        });
+      });
+      inp.addEventListener('change', function() {
+        var files = inp.files ? Array.from(inp.files) : [];
+        updateAttachUi(files);
+      });
+      sync();
+    })();
+  </script>
+</body>
+</html>

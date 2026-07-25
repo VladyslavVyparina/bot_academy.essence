@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Теги — Community Bot</title>
+  {% include "_admin_design_system.html" %}
+</head>
+<body>
+  <div class="header">
+    <h1>Теги для карток учасникiв</h1>
+    <p>Додавайте власнi теги, якi можна буде присвоювати учасникам у iх картках</p>
+  </div>
+
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title"><i data-lucide="plus-circle"></i> Додати новий тег</div>
+    </div>
+    <form method="post" action="/admin/tags/create">
+      <input type="hidden" name="token" value="{{ token }}" />
+      <div style="display:flex;gap:6px;align-items:flex-end;">
+        <div class="form-row" style="flex:1;margin-bottom:0;">
+          <label>Назва тегу</label>
+          <input type="text" name="name" placeholder="Напр. VIP, новачок, активiст..." required />
+        </div>
+        <button type="submit" class="btn btn-primary"><i data-lucide="plus"></i> Додати</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title"><i data-lucide="tag"></i> Iснуючi теги</div>
+      <span class="badge badge-primary">{{ tags|length }}</span>
+    </div>
+    {% if tags %}
+    <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      {% for t in tags %}
+      <span class="badge badge-primary" style="padding: 5px 12px; font-size: 0.78rem;">
+        <i data-lucide="tag" style="width:11px;height:11px;"></i>
+        {{ t.name }}
+      </span>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted" style="text-align:center;padding:20px;">Немае тегiв. Додайте перший вгорi.</p>
+    {% endif %}
+  </div>
+</body>
+</html>

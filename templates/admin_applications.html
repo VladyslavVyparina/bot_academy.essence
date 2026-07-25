@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Анкети — Community Bot</title>
+  {% include "_admin_design_system.html" %}
+</head>
+<body>
+  <div class="header">
+    <h1>Анкети «Стати учасником»</h1>
+    <p>{% if applications %}На розглядi: {{ applications|length }}{% else %}Немае анкет на розглядi{% endif %}</p>
+  </div>
+
+  {% if applications %}
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 10px;">
+    {% for a in applications %}
+    <div class="card">
+      <div class="cb-card-header">
+        <div class="cb-card-title">
+          <i data-lucide="user"></i>
+          {{ a.full_name or 'Без iменi' }}
+        </div>
+        <span class="badge badge-warning">На розглядi</span>
+      </div>
+
+      <div style="display: grid; grid-template-columns: max-content 1fr; gap: 4px 10px; margin-bottom: 12px; font-size: 0.85rem;">
+        <span class="text-muted">Телефон:</span>
+        <span>{{ a.phone or '—' }}</span>
+        <span class="text-muted">Email:</span>
+        <span>{{ a.email or '—' }}</span>
+        <span class="text-muted">Telegram:</span>
+        <span class="mono">{{ a.tg_display }}</span>
+      </div>
+
+      <div class="form-row">
+        <label>Мотивацiя</label>
+        <div style="padding:8px 10px;background:var(--bg-input);border:1px solid var(--border-subtle);border-radius:var(--radius);font-size:0.85rem;color:var(--text-primary);min-height:40px;">{{ a.motivation or '—' }}</div>
+      </div>
+
+      <div class="form-row">
+        <label>Досвiд</label>
+        <div style="padding:8px 10px;background:var(--bg-input);border:1px solid var(--border-subtle);border-radius:var(--radius);font-size:0.85rem;color:var(--text-primary);min-height:40px;">{{ a.experience or '—' }}</div>
+      </div>
+
+      <div class="form-row">
+        <label>Перiод та сума (для пiдтвердження)</label>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; align-items:center;">
+          <select name="membership_period" form="appl-approve-{{ a.id }}" style="width:auto; min-width:140px;">
+            <option value="month">Мiсяць</option>
+            <option value="quarter">Квартал</option>
+            <option value="year">Рiк</option>
+          </select>
+          <input type="number" name="membership_amount_uah" value="100" min="0" form="appl-approve-{{ a.id }}" style="width:100px;" />
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Посилання на оплату (опцiйно)</label>
+        <input
+          type="url"
+          name="payment_url"
+          form="appl-approve-{{ a.id }}"
+          placeholder="https://..."
+        />
+      </div>
+      <div class="form-actions-row">
+        <form id="appl-approve-{{ a.id }}" method="post" action="/admin/applications/{{ a.id }}/approve">
+          <input type="hidden" name="token" value="{{ token }}" />
+          <button type="submit" class="btn btn-green"><i data-lucide="check-circle"></i> Пiдтвердити учасника</button>
+        </form>
+        <form method="post" action="/admin/applications/{{ a.id }}/reject" onsubmit="return confirm('Вiдхилити цю заявку? Користувач отримає повiдомлення в Telegram.');">
+          <input type="hidden" name="token" value="{{ token }}" />
+          <button type="submit" class="btn btn-red"><i data-lucide="x-circle"></i> Вiдхилити</button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="card">
+    <p class="text-muted" style="text-align:center;padding:40px;">
+      <i data-lucide="inbox" style="width:28px;height:28px;display:block;margin:0 auto 10px;opacity:0.4;"></i>
+      Немае анкет на розглядi
+    </p>
+  </div>
+  {% endif %}
+</body>
+</html>

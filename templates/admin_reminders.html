@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Налаштування нагадувань — Community Bot</title>
+  {% include "_admin_design_system.html" %}
+</head>
+<body>
+  <div class="header">
+    <h1>Налаштування нагадувань i пушiв</h1>
+    <p>Управлiння автоматичними повiдомленнями на рiзних етапах воронки</p>
+  </div>
+
+  <div class="nav-pills">
+    <a href="/admin/funnel?token={{ token }}"><i data-lucide="filter"></i> Воронка користувачiв</a>
+    <a href="/admin/bot-menu?token={{ token }}"><i data-lucide="bot"></i> Меню бота</a>
+  </div>
+
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title"><i data-lucide="info"></i> Етапи воронки</div>
+    </div>
+    <p class="hint">
+      <strong>1</strong> — почав реестрацiю; <strong>2</strong> — ввiв данi, не обрав захiд;
+      <strong>3</strong> — обрав захiд; <strong>4</strong> — на оплатi подii
+      (<code>stage_4_unpaid_1h</code> / <code>stage_4_unpaid_24h</code>);
+      <strong>5</strong> — оплатив (нагадування перед подiею)
+    </p>
+  </div>
+
+  {% for s in settings %}
+  <div class="card">
+    <form method="post" action="/admin/reminders/update">
+      <input type="hidden" name="token" value="{{ token }}" />
+      <input type="hidden" name="stage" value="{{ s.stage }}" />
+
+      <div class="cb-card-header">
+        <div class="cb-card-title">
+          <i data-lucide="bell"></i>
+          <code style="font-size:0.8rem;">{{ s.stage }}</code>
+          {% if s.stage_name %}<span style="font-weight:500;color:var(--text-secondary);">— {{ s.stage_name }}</span>{% endif %}
+        </div>
+        {% if s.enabled %}
+        <span class="badge badge-success"><i data-lucide="check" style="width:10px;height:10px;"></i> Увiмкнено</span>
+        {% else %}
+        <span class="badge badge-danger">Вимкнено</span>
+        {% endif %}
+      </div>
+
+      <div class="form-row">
+        <label>
+          <input type="hidden" name="enabled" value="0" />
+          <input type="checkbox" name="enabled" value="1" {% if s.enabled %}checked{% endif %} />
+          Увiмкнено
+        </label>
+      </div>
+
+      <div class="form-row">
+        <label>Текст повiдомлення</label>
+        <textarea name="message_text" rows="3">{{ s.message_text }}</textarea>
+      </div>
+
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Затримка (хв)</label>
+          <input type="number" name="delay_minutes" value="{{ s.delay_minutes }}" min="1" />
+          <p class="hint">Для stage_5 — за скiльки хв до подii надсилати</p>
+        </div>
+        <div class="form-row">
+          <label>Макс. спроб</label>
+          <input type="number" name="max_attempts" value="{{ s.max_attempts }}" min="1" max="10" />
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button type="submit" class="btn btn-green"><i data-lucide="save"></i> Зберегти</button>
+      </div>
+    </form>
+  </div>
+  {% endfor %}
+</body>
+</html>

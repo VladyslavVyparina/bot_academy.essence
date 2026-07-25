@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Живі чати — Адмін</title>
+  {% include "_admin_design_system.html" %}
+  <style>
+    .lc-wrap { max-width: 1400px; margin: 0 auto; }
+    .lc-app {
+      display: grid;
+      grid-template-columns: minmax(260px, 320px) 1fr minmax(240px, 300px);
+      gap: 10px;
+      align-items: stretch;
+      min-height: calc(100vh - 100px);
+    }
+    @media (max-width: 960px) {
+      .lc-app { grid-template-columns: 1fr; min-height: auto; }
+      .lc-col { min-height: 240px; }
+    }
+    .lc-col {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .lc-col-header {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border-color);
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .lc-search-wrap { padding: 8px 10px; border-bottom: 1px solid var(--border-color); }
+    .lc-list { overflow-y: auto; flex: 1; max-height: calc(100vh - 220px); }
+    @media (max-width: 960px) {
+      .lc-list { max-height: 280px; }
+    }
+    .lc-item {
+      display: block;
+      width: 100%;
+      padding: 8px 10px;
+      border: none;
+      border-bottom: 1px solid var(--border-color);
+      cursor: pointer;
+      text-align: left;
+      background: transparent;
+      color: var(--text-primary);
+      font-size: 12px;
+      font-family: var(--font-body);
+      overflow: hidden;
+    }
+    .lc-item:hover { background: var(--bg-secondary); }
+    .lc-item.active {
+      border-left: 3px solid var(--color-success);
+      padding-left: 7px;
+      background: var(--bg-secondary);
+    }
+    .lc-item-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .lc-name {
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+      flex: 1;
+    }
+    .lc-snippet {
+      color: var(--text-muted);
+      font-size: 11px;
+      margin-top: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .lc-badge {
+      display: inline-block;
+      font-size: 10px;
+      line-height: 1;
+      padding: 3px 6px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--color-success);
+      color: var(--color-success);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .lc-thread {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 200px;
+      max-height: calc(100vh - 280px);
+    }
+    @media (max-width: 960px) {
+      .lc-thread { max-height: 360px; }
+    }
+    .lc-msg {
+      max-width: 92%;
+      padding: 8px 10px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+      font-size: 12px;
+    }
+    .lc-msg.user { align-self: flex-start; background: var(--bg-secondary); }
+    .lc-msg.admin { align-self: flex-end; background: #142e22; border-color: #2d6b4f; }
+    html.light-theme .lc-msg.admin { background: #e8f5ef; border-color: #86cfa3; }
+    .lc-msg.bot {
+      align-self: flex-end;
+      background: var(--bg-secondary);
+      border-style: dashed;
+      opacity: 0.95;
+    }
+    .lc-msg .lc-meta {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .lc-msg p { margin: 0; word-break: break-word; line-height: 1.4; color: var(--text-primary); }
+    .lc-msg a { color: #8ab4ff; text-decoration: underline; }
+    .lc-compose { padding: 10px; border-top: 1px solid var(--border-color); }
+    .lc-compose textarea { min-height: 56px; resize: vertical; }
+    .lc-compose-top { display: flex; align-items: flex-start; gap: 8px; }
+    .lc-side-file { width: 220px; flex-shrink: 0; }
+    .lc-side-file input[type="file"] { width: 100%; }
+    .lc-attach-name {
+      margin-top: 4px;
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .clip-wrap { display: inline-flex; margin-left: 8px; }
+    .lc-detail { padding: 10px; overflow-y: auto; flex: 1; font-size: 12px; max-height: calc(100vh - 140px); }
+    .lc-detail dt { color: var(--text-muted); font-size: 10px; text-transform: uppercase; margin-top: 8px; }
+    .lc-detail dd { margin: 2px 0 0; }
+    .lc-status { font-size: 11px; color: var(--text-muted); margin-bottom: 8px; }
+    .lc-link-support { font-size: 11px; margin-top: 10px; display: inline-block; }
+  </style>
+</head>
+<body>
+  <div class="lc-wrap">
+    <a href="/admin?token={{ token }}" class="btn btn-back">← Назад</a>
+    <h1>Живі чати</h1>
+    <p class="lc-status" id="lc-status">Завантаження списку…</p>
+    <div class="lc-app">
+      <div class="lc-col">
+        <div class="lc-col-header">Користувачі</div>
+        <div class="lc-search-wrap">
+          <input type="search" id="lc-search" placeholder="Пошук за ім'ям, телефоном, Telegram…" autocomplete="off" />
+        </div>
+        <div id="lc-list" class="lc-list" role="listbox"></div>
+      </div>
+      <div class="lc-col">
+        <div class="lc-col-header" id="lc-chat-title">Оберіть користувача зліва</div>
+        <div id="lc-thread" class="lc-thread"></div>
+        <form id="lc-send" class="lc-compose" method="post" action="#" style="display:none;">
+          <input type="hidden" name="token" value="{{ token }}" />
+          <div class="form-row">
+            <label for="lc-media-type">Тип повідомлення</label>
+            <div style="display:flex;align-items:center;">
+              <select id="lc-media-type" name="media_type">
+                <option value="text">Тільки текст</option>
+                <option value="photo">Фото + текст</option>
+                <option value="video">Відео + текст</option>
+                <option value="document">Файл + текст</option>
+              </select>
+              <div class="clip-wrap">
+                <button type="button" id="lc-clip" class="btn">📎</button>
+              </div>
+            </div>
+            <div id="lc-clip-list" style="display:none;gap:6px;flex-wrap:wrap;margin:6px 0;">
+              <button type="button" class="btn btn-small" data-type="photo">Фото</button>
+              <button type="button" class="btn btn-small" data-type="video">Відео</button>
+              <button type="button" class="btn btn-small" data-type="document">Файл</button>
+            </div>
+          </div>
+          <label for="lc-msg-input">Повідомлення клієнту в Telegram</label>
+          <div class="lc-compose-top">
+            <textarea id="lc-msg-input" name="message" rows="2" placeholder="Текст…" maxlength="4096"></textarea>
+            <div id="lc-file-wrap" class="lc-side-file" style="display:none;">
+              <label for="lc-attach-input">Виберіть файл(и)</label>
+              <input id="lc-attach-input" type="file" name="attachment_files" multiple />
+            </div>
+          </div>
+          <div id="lc-attach-name" class="lc-attach-name">Без вкладення</div>
+          <div id="lc-attach-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;"></div>
+          <div class="form-actions-row" style="margin-top:8px;">
+            <button type="submit" class="btn btn-green">Надіслати</button>
+          </div>
+        </form>
+      </div>
+      <div class="lc-col">
+        <div class="lc-col-header">Інформація по ліду</div>
+        <div id="lc-detail" class="lc-detail">
+          <p class="hint">Оберіть користувача, щоб побачити ПІБ, телефон, статус і події.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const TOKEN = {{ token|tojson }};
+    const INITIAL_USER_ID = {{ selected_user_id | tojson }};
+    const state = { userId: null, lastSeenId: 0, usersById: {}, pollTimer: null };
+    let didInitSelect = false;
+
+    function esc(s) {
+      if (s == null) return '';
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function setUrlUser(uid) {
+      const p = new URLSearchParams(window.location.search);
+      p.set('token', TOKEN);
+      if (uid) p.set('user_id', String(uid));
+      else p.delete('user_id');
+      window.history.replaceState({}, '', window.location.pathname + '?' + p.toString());
+    }
+
+    function msgClass(kind) {
+      if (kind === 'bot') return 'lc-msg bot';
+      if (kind === 'admin') return 'lc-msg admin';
+      return 'lc-msg user';
+    }
+
+    function msgLabel(kind, fromAdmin) {
+      if (kind === 'bot') return 'Бот (клієнту)';
+      if (fromAdmin || kind === 'admin') return 'Адмін';
+      return 'Клієнт';
+    }
+
+    function appendMessages(msgs, threadEl) {
+      msgs.forEach(function(m) {
+        const kind = m.kind || (m.from_admin ? 'admin' : 'user');
+        const div = document.createElement('div');
+        div.className = msgClass(kind);
+        let body = esc(m.content || '');
+        if (m.content_type === 'photo' && m.content) body = '<img src="' + esc(m.content) + '" alt="" style="max-width:220px;border-radius:8px;" />';
+        else if (m.content_type === 'video' && m.content) body = '<a href="' + esc(m.content) + '" target="_blank">Відео</a>';
+        else if (m.content_type === 'document' && m.content) body = '<a href="' + esc(m.content) + '" target="_blank">Файл</a>';
+        div.innerHTML = '<div class="lc-meta">' + esc(msgLabel(kind, m.from_admin)) + ' · ' + esc(m.created_at || '') + '</div><p>' + body + '</p>';
+        threadEl.appendChild(div);
+        state.lastSeenId = Math.max(state.lastSeenId, m.id || 0);
+      });
+      threadEl.scrollTop = threadEl.scrollHeight;
+    }
+
+    async function loadThreadFull(uid) {
+      const threadEl = document.getElementById('lc-thread');
+      threadEl.innerHTML = '';
+      state.lastSeenId = 0;
+      const r = await fetch('/admin/live-chats/' + uid + '/messages?token=' + encodeURIComponent(TOKEN) + '&after=0');
+      const data = await r.json();
+      if (!data.thread_id) {
+        threadEl.innerHTML = '<p class="hint">Немає відкритого треду підтримки. Надішліть перше повідомлення — чат відкриється автоматично.</p>';
+        return;
+      }
+      appendMessages(data.messages || [], threadEl);
+    }
+
+    async function pollNew(uid) {
+      if (!uid) return;
+      const threadEl = document.getElementById('lc-thread');
+      const r = await fetch('/admin/live-chats/' + uid + '/messages?token=' + encodeURIComponent(TOKEN) + '&after=' + state.lastSeenId);
+      const data = await r.json();
+      if (data.messages && data.messages.length) appendMessages(data.messages, threadEl);
+    }
+
+    function renderDetail(u) {
+      const el = document.getElementById('lc-detail');
+      if (!u) {
+        el.innerHTML = '<p class="hint">Оберіть користувача.</p>';
+        return;
+      }
+      const ev = (u.events_lines || []).map(function(l) { return '<li>' + esc(l) + '</li>'; }).join('');
+      el.innerHTML =
+        '<dl>' +
+        '<dt>ПІБ</dt><dd>' + esc(u.full_name || '—') + '</dd>' +
+        '<dt>Телефон</dt><dd>' + esc(u.phone || '—') + '</dd>' +
+        '<dt>Telegram</dt><dd>' + esc(u.tg_display || '') + '</dd>' +
+        '<dt>Статус / роль</dt><dd>' + esc(u.role_ua || u.role || '') + '</dd>' +
+        '<dt>Етап онбордингу</dt><dd>' + esc(u.onboarding_stage || '—') + '</dd>' +
+        '</dl>' +
+        '<div><strong>Активні події</strong></div>' +
+        (ev ? '<ul style="margin:6px 0 0 18px;padding:0;">' + ev + '</ul>' : '<p class="hint" style="margin-top:6px;">Немає активних реєстрацій</p>');
+    }
+
+    function selectUser(uid) {
+      state.userId = uid;
+      setUrlUser(uid);
+      document.querySelectorAll('.lc-item').forEach(function(b) {
+        b.classList.toggle('active', String(b.getAttribute('data-uid')) === String(uid));
+      });
+      const u = state.usersById[uid];
+      const title = document.getElementById('lc-chat-title');
+      const form = document.getElementById('lc-send');
+      if (!u) {
+        title.textContent = 'Оберіть користувача зліва';
+        form.style.display = 'none';
+        renderDetail(null);
+        return;
+      }
+      title.textContent = (u.full_name || 'Без імені') + ' · ' + (u.tg_display || '');
+      form.style.display = 'block';
+      form.action = '/admin/live-chats/' + uid + '/send';
+      renderDetail(u);
+      loadThreadFull(uid);
+    }
+
+    function filterUsers(q, users) {
+      q = (q || '').trim().toLowerCase();
+      if (!q) return users;
+      return users.filter(function(u) {
+        const hay = [u.full_name, u.phone, u.tg_display, u.tg_username, String(u.id)].join(' ').toLowerCase();
+        return hay.indexOf(q) !== -1;
+      });
+    }
+
+    function renderList(users) {
+      const q = document.getElementById('lc-search').value;
+      const list = filterUsers(q, users);
+      const el = document.getElementById('lc-list');
+      el.innerHTML = list.map(function(u) {
+        const sn = (u.last_snippet || '').slice(0, 120);
+        const badge = u.open_thread_id ? '<span class="lc-badge">Відкритий чат</span>' : '';
+        return '<button type="button" class="lc-item" data-uid="' + u.id + '">' +
+          '<div class="lc-item-top"><div class="lc-name">' + esc(u.full_name || 'Без імені') + '</div>' + badge + '</div>' +
+          '<div class="lc-snippet">' + esc(sn || '—') + '</div></button>';
+      }).join('');
+      el.querySelectorAll('.lc-item').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          selectUser(parseInt(btn.getAttribute('data-uid'), 10));
+        });
+      });
+      if (state.userId) {
+        const still = list.some(function(u) { return u.id === state.userId; });
+        if (still) {
+          const cur = document.querySelector('.lc-item[data-uid="' + state.userId + '"]');
+          if (cur) cur.classList.add('active');
+        }
+      }
+    }
+
+    let allUsers = [];
+    async function loadUsers() {
+      try {
+        const r = await fetch('/admin/live-chats/data?token=' + encodeURIComponent(TOKEN));
+        const data = await r.json();
+        allUsers = data.users || [];
+        allUsers.forEach(function(u) { state.usersById[u.id] = u; });
+        renderList(allUsers);
+        document.getElementById('lc-status').textContent = 'Оновлено: ' + new Date().toLocaleString('uk-UA');
+        if (INITIAL_USER_ID && !didInitSelect) {
+          const exists = allUsers.some(function(u) { return u.id === INITIAL_USER_ID; });
+          if (exists) {
+            selectUser(INITIAL_USER_ID);
+            didInitSelect = true;
+          }
+        }
+      } catch (e) {
+        document.getElementById('lc-status').textContent = 'Помилка завантаження списку';
+      }
+    }
+
+    document.getElementById('lc-search').addEventListener('input', function() {
+      renderList(allUsers);
+    });
+    const attachInput = document.getElementById('lc-attach-input');
+    const attachName = document.getElementById('lc-attach-name');
+    const mediaTypeSel = document.getElementById('lc-media-type');
+    const fileWrap = document.getElementById('lc-file-wrap');
+    const clipBtn = document.getElementById('lc-clip');
+    const clipList = document.getElementById('lc-clip-list');
+    const previewEl = document.getElementById('lc-attach-preview');
+    function setInputFiles(input, files) {
+      if (typeof DataTransfer === 'undefined') return;
+      const dt = new DataTransfer();
+      files.forEach(f => dt.items.add(f));
+      input.files = dt.files;
+    }
+    function updateAttachUi(files) {
+      if (!files.length) {
+        attachName.textContent = 'Без вкладення';
+        previewEl.innerHTML = '';
+        return;
+      }
+      if (files.length === 1) attachName.textContent = 'Вкладення: ' + files[0].name;
+      else attachName.textContent = 'Вкладення: ' + files.length + ' файлів';
+      renderPreview(files);
+    }
+    function renderPreview(files) {
+      previewEl.innerHTML = '';
+      files.forEach(function(f, idx) {
+        const box = document.createElement('div');
+        box.className = 'attach-preview-item';
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'attach-remove-btn';
+        removeBtn.textContent = '×';
+        removeBtn.onclick = function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          const current = attachInput.files ? Array.from(attachInput.files) : [];
+          current.splice(idx, 1);
+          setInputFiles(attachInput, current);
+          updateAttachUi(current);
+        };
+        box.appendChild(removeBtn);
+        if ((f.type || '').startsWith('image/')) {
+          const img = document.createElement('img');
+          img.src = URL.createObjectURL(f);
+          img.className = 'attach-preview-media';
+          box.appendChild(img);
+        } else if ((f.type || '').startsWith('video/')) {
+          const v = document.createElement('video');
+          v.controls = true;
+          v.src = URL.createObjectURL(f);
+          v.className = 'attach-preview-media';
+          box.appendChild(v);
+        }
+        const t = document.createElement('div');
+        t.className = 'hint';
+        t.textContent = f.name;
+        box.appendChild(t);
+        previewEl.appendChild(box);
+      });
+    }
+    function syncMediaUi() {
+      const needFile = mediaTypeSel.value !== 'text';
+      fileWrap.style.display = needFile ? 'block' : 'none';
+      if (mediaTypeSel.value === 'photo') attachInput.accept = 'image/*';
+      else if (mediaTypeSel.value === 'video') attachInput.accept = 'video/*';
+      else attachInput.accept = '';
+      if (!needFile) {
+        attachInput.value = '';
+        attachName.textContent = 'Без вкладення';
+        previewEl.innerHTML = '';
+      }
+    }
+    mediaTypeSel.addEventListener('change', syncMediaUi);
+    attachInput.addEventListener('change', function() {
+      const files = attachInput.files ? Array.from(attachInput.files) : [];
+      updateAttachUi(files);
+    });
+    clipBtn.addEventListener('click', function() {
+      clipList.style.display = clipList.style.display === 'flex' ? 'none' : 'flex';
+    });
+    clipList.querySelectorAll('button[data-type]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        mediaTypeSel.value = btn.getAttribute('data-type');
+        clipList.style.display = 'none';
+        syncMediaUi();
+        attachInput.click();
+      });
+    });
+    syncMediaUi();
+
+    document.getElementById('lc-send').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const uid = state.userId;
+      const ta = document.getElementById('lc-msg-input');
+      const text = (ta.value || '').trim();
+      const files = attachInput.files ? Array.from(attachInput.files) : [];
+      if (!uid || (!text && !files.length)) return;
+      const fd = new FormData();
+      fd.append('token', TOKEN);
+      fd.append('media_type', mediaTypeSel.value || 'text');
+      fd.append('message', text);
+      files.forEach(function(f) { fd.append('attachment_files', f); });
+      const r = await fetch('/admin/live-chats/' + uid + '/send', { method: 'POST', body: fd, redirect: 'manual' });
+      ta.value = '';
+      attachInput.value = '';
+      attachName.textContent = 'Без вкладення';
+      if (r.ok || r.status === 303 || r.type === 'opaqueredirect') {
+        await loadUsers();
+        selectUser(uid);
+        await pollNew(uid);
+      }
+    });
+
+    loadUsers();
+    setInterval(loadUsers, 8000);
+    setInterval(function() { pollNew(state.userId); }, 3000);
+  </script>
+</body>
+</html>

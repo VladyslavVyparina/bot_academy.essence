@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Воронка — Community Bot</title>
+  {% include "_admin_design_system.html" %}
+</head>
+<body>
+  <div class="header">
+    <h1>Воронка користувачiв</h1>
+    <p>Користувачi по етапах (чи перейшов вiд одного етапу до iншого)</p>
+  </div>
+
+  <div class="nav-pills">
+    <a href="/admin/reminders?token={{ token }}"><i data-lucide="settings"></i> Налаштування нагадувань</a>
+    <a href="/admin/broadcast?token={{ token }}"><i data-lucide="megaphone"></i> Розсилка</a>
+  </div>
+
+  <!-- Funnel stages as visual cards -->
+  <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
+    <div class="stat-card cb-stat-accent">
+      <div class="cb-stat-label">Етап 1</div>
+      <div class="cb-stat-value">{{ stage_1|length }}</div>
+      <div class="cb-stat-sub">Почав реестрацiю</div>
+    </div>
+    <div class="stat-card">
+      <div class="cb-stat-label">Етап 2</div>
+      <div class="cb-stat-value" style="color: var(--color-info);">{{ stage_2|length }}</div>
+      <div class="cb-stat-sub">Ввiв данi</div>
+    </div>
+    <div class="stat-card">
+      <div class="cb-stat-label">Етап 3</div>
+      <div class="cb-stat-value" style="color: var(--color-warning);">{{ stage_4|length }}</div>
+      <div class="cb-stat-sub">Не завершив оплату</div>
+    </div>
+    <div class="stat-card">
+      <div class="cb-stat-label">Етап 4</div>
+      <div class="cb-stat-value" style="color: var(--color-success);">{{ stage_5|length }}</div>
+      <div class="cb-stat-sub">Оплатив подiю</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title"><i data-lucide="user-plus"></i> Етап 1: Почав реестрацiю, не ввiв данi</div>
+      <span class="badge badge-primary">{{ stage_1|length }}</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>ПIБ</th><th>Telegram</th><th>Етап</th><th>Оновлено</th><th></th></tr></thead>
+        <tbody>
+          {% for u in stage_1 %}
+          <tr>
+            <td><code>{{ u.id }}</code></td>
+            <td><strong>{{ u.full_name or '—' }}</strong></td>
+            <td>{% if u.tg_username %}@{{ u.tg_username }}{% else %}<code>tg:{{ u.tg_user_id }}</code>{% endif %}</td>
+            <td><span class="badge badge-info">{{ u.onboarding_stage }}</span></td>
+            <td><span class="mono text-xs text-muted">{{ u.updated_at|dt_kyiv if u.updated_at else '—' }}</span></td>
+            <td><a href="/admin/push?token={{ token }}&user_id={{ u.id }}" class="btn btn-small"><i data-lucide="send"></i> Пуш</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6">Немае</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title"><i data-lucide="edit-3"></i> Етап 2: Ввiв данi, не обрав захiд</div>
+      <span class="badge badge-info">{{ stage_2|length }}</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>ПIБ</th><th>Telegram</th><th>Оновлено</th><th></th></tr></thead>
+        <tbody>
+          {% for u in stage_2 %}
+          <tr>
+            <td><code>{{ u.id }}</code></td>
+            <td><strong>{{ u.full_name or '—' }}</strong></td>
+            <td>{% if u.tg_username %}@{{ u.tg_username }}{% else %}<code>tg:{{ u.tg_user_id }}</code>{% endif %}</td>
+            <td><span class="mono text-xs text-muted">{{ u.updated_at|dt_kyiv if u.updated_at else '—' }}</span></td>
+            <td><a href="/admin/push?token={{ token }}&user_id={{ u.id }}" class="btn btn-small"><i data-lucide="send"></i> Пуш</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5">Немае</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title"><i data-lucide="credit-card"></i> Етап 3: Оплата подii не завершена</div>
+      <span class="badge badge-warning">{{ stage_4|length }}</span>
+    </div>
+    <p class="hint">Автонагадування: 1 год та 24 год пiсля iнвойсу — у роздiлi <a href="/admin/reminders?token={{ token }}">«Нагадування»</a> (етапи <code>stage_4_unpaid_1h</code> / <code>stage_4_unpaid_24h</code>).</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>ПIБ</th><th>Telegram</th><th>Подiя</th><th></th></tr></thead>
+        <tbody>
+          {% for u in stage_4 %}
+          <tr>
+            <td><code>{{ u.id }}</code></td>
+            <td><strong>{{ u.full_name or '—' }}</strong></td>
+            <td>{% if u.tg_username %}@{{ u.tg_username }}{% else %}<code>tg:{{ u.tg_user_id }}</code>{% endif %}</td>
+            <td>{{ u.event_title }}</td>
+            <td><a href="/admin/push?token={{ token }}&user_id={{ u.id }}&event_id={{ u.event_id }}" class="btn btn-small"><i data-lucide="send"></i> Пуш</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5">Немае</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title"><i data-lucide="check-circle"></i> Етап 4: Оплатив (нагадування перед подiею)</div>
+      <span class="badge badge-success">{{ stage_5|length }}</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>ID</th><th>ПIБ</th><th>Telegram</th><th>Подiя</th><th>Дата</th><th></th></tr></thead>
+        <tbody>
+          {% for u in stage_5 %}
+          <tr>
+            <td><code>{{ u.id }}</code></td>
+            <td><strong>{{ u.full_name or '—' }}</strong></td>
+            <td>{% if u.tg_username %}@{{ u.tg_username }}{% else %}<code>tg:{{ u.tg_user_id }}</code>{% endif %}</td>
+            <td>{{ u.event_title }}</td>
+            <td><span class="mono text-xs">{{ u.starts_at|dt_kyiv if u.starts_at else '—' }}</span></td>
+            <td><a href="/admin/push?token={{ token }}&user_id={{ u.id }}&event_id={{ u.event_id }}" class="btn btn-small"><i data-lucide="send"></i> Пуш</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6">Немае</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

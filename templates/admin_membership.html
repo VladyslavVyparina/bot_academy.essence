@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Внески учасникiв — Community Bot</title>
+  {% include "_admin_design_system.html" %}
+</head>
+<body>
+  <div class="header">
+    <h1>Налаштування внескiв учасникiв</h1>
+    <p>Цiни за перiод (мiсяць, квартал, рiк). Адмiн задае перiод i суму при пiдтвердженнi анкети.</p>
+  </div>
+
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title"><i data-lucide="info"></i> Як це працюе</div>
+    </div>
+    <p>Оплата внеску створюеться автоматично через <strong>WayForPay</strong>. Перевiрка оплати вiдбуваеться автоматично.</p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px;">
+    {% for s in settings %}
+    <div class="card">
+      <form method="post" action="/admin/membership/update">
+        <input type="hidden" name="token" value="{{ token }}" />
+        <input type="hidden" name="period" value="{{ s.period }}" />
+
+        <div class="cb-card-header">
+          <div class="cb-card-title">
+            <i data-lucide="crown"></i>
+            {{ s.period }}
+          </div>
+          <span class="badge badge-info">{{ s.months }} мiс.</span>
+        </div>
+
+        <div class="form-row">
+          <label>Сума (грн)</label>
+          <input type="number" name="amount_uah" value="{{ s.amount_uah }}" min="0" />
+        </div>
+
+        <div class="btn-row">
+          <button type="submit" class="btn btn-green"><i data-lucide="save"></i> Зберегти</button>
+        </div>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Вхiд — Community Bot</title>
+  {% include "_admin_design_system.html" %}
+</head>
+<body>
+  <div class="card">
+    {% if error %}
+    <p class="err"><i data-lucide="alert-circle" style="width:14px;height:14px;vertical-align:-2px;"></i> {{ error }}</p>
+    {% endif %}
+    <h2 style="text-align:center;font-size:1rem;">Вхiд через Telegram</h2>
+    <p style="text-align:center;">Щоб отримати доступ, вiдкрийте бота в Telegram i надiшлiть команду:</p>
+    <div class="steps">
+      <ol>
+        <li>Вiдкрийте бота в Telegram</li>
+        <li>Напишiть команду <span class="highlight">/admin</span></li>
+        <li>Скопiюйте отримане посилання та вiдкрийте його в браузерi</li>
+      </ol>
+    </div>
+    <p class="hint" style="text-align:center;margin-top:14px;">
+      <i data-lucide="shield" style="width:12px;height:12px;vertical-align:-1px;"></i>
+      Вхiд здiйснюеться тiльки через одноразове посилання з Telegram
+    </p>
+  </div>
+</body>
+</html>

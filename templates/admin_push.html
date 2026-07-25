@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Пуш — Community Bot</title>
+  {% include "_admin_design_system.html" %}
+  <style>
+    .attach-row { display: flex; align-items: flex-start; gap: 8px; }
+    .file-side { width: 220px; flex-shrink: 0; }
+    .file-side input[type="file"] { width: 100%; }
+    .attach-name { margin-top: 4px; font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .clip-wrap { display: inline-flex; margin-left: 8px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Надiслати пуш</h1>
+    <p>Персональне повiдомлення конкретному користувачу</p>
+  </div>
+
+  {% if user %}
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title"><i data-lucide="user-check"></i> Одержувач</div>
+    </div>
+    <div style="display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin-bottom: 6px; font-size: 0.88rem;">
+      <span class="text-muted">ПIБ:</span>
+      <strong>{{ user.full_name or '—' }}</strong>
+      <span class="text-muted">Telegram:</span>
+      <span class="mono">{{ user.tg_display }}</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title"><i data-lucide="send"></i> Текст повiдомлення</div>
+    </div>
+    <form method="post" action="/admin/push/send" enctype="multipart/form-data">
+      <input type="hidden" name="token" value="{{ token }}" />
+      <input type="hidden" name="user_id" value="{{ user.id }}" />
+      {% if event_id %}<input type="hidden" name="event_id" value="{{ event_id }}" />{% endif %}
+
+      <div class="form-row">
+        <label>Тип повідомлення</label>
+        <div style="display:flex;align-items:center;">
+          <select id="push-media-type" name="media_type">
+            <option value="text">Тільки текст</option>
+            <option value="photo">Фото + текст</option>
+            <option value="video">Відео + текст</option>
+            <option value="document">Файл + текст</option>
+          </select>
+          <div class="clip-wrap">
+            <button type="button" id="push-clip" class="btn">📎</button>
+          </div>
+        </div>
+        <div id="push-clip-list" style="display:none;gap:6px;flex-wrap:wrap;margin:6px 0;">
+          <button type="button" class="btn btn-small" data-type="photo">Фото</button>
+          <button type="button" class="btn btn-small" data-type="video">Відео</button>
+          <button type="button" class="btn btn-small" data-type="document">Файл</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Повiдомлення</label>
+        <div class="attach-row">
+          <textarea id="push-msg" name="message" rows="5" placeholder="Введiть текст повiдомлення..."></textarea>
+          <div id="push-file-side" class="file-side" style="display:none;">
+            <label for="push-attach">Виберіть файл(и)</label>
+            <input id="push-attach" type="file" name="attachment_files" multiple />
+          </div>
+        </div>
+        <div id="push-attach-name" class="attach-name">Без вкладення</div>
+        <div id="push-attach-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;"></div>
+      </div>
+
+      <div class="btn-row">
+        <button type="submit" class="btn btn-primary"><i data-lucide="send"></i> Надiслати</button>
+      </div>
+    </form>
+  </div>
+  {% else %}
+  <div class="card">
+    <p class="text-muted" style="text-align:center;padding:30px;">
+      <i data-lucide="user-x" style="width:28px;height:28px;display:block;margin:0 auto 10px;opacity:0.4;"></i>
+      Користувача не знайдено
+    </p>
+  </div>
+  {% endif %}
+  <script>
+    const pushAttach = document.getElementById('push-attach');
+    const pushAttachName = document.getElementById('push-attach-name');
+    const pushMediaType = document.getElementById('push-media-type');
+    const pushFileSide = document.getElementById('push-file-side');
+    const pushClip = document.getElementById('push-clip');
+    const pushClipList = document.getElementById('push-clip-list');
+    const previewEl = document.getElementById('push-attach-preview');
+    function setInputFiles(input, files) {
+      if (typeof DataTransfer === 'undefined') return;
+      const dt = new DataTransfer();
+      files.forEach(f => dt.items.add(f));
+      input.files = dt.files;
+    }
+    function updateAttachUi(files) {
+      if (!files.length) {
+        pushAttachName.textContent = 'Без вкладення';
+        previewEl.innerHTML = '';
+        return;
+      }
+      if (files.length === 1) pushAttachName.textContent = 'Вкладення: ' + files[0].name;
+      else pushAttachName.textContent = 'Вкладення: ' + files.length + ' файлів';
+      renderPreview(files);
+    }
+    function renderPreview(files) {
+      previewEl.innerHTML = '';
+      files.forEach(function(f, idx) {
+        const box = document.createElement('div');
+        box.className = 'attach-preview-item';
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'attach-remove-btn';
+        removeBtn.textContent = '×';
+        removeBtn.onclick = function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          const current = pushAttach.files ? Array.from(pushAttach.files) : [];
+          current.splice(idx, 1);
+          setInputFiles(pushAttach, current);
+          updateAttachUi(current);
+        };
+        box.appendChild(removeBtn);
+        if ((f.type || '').startsWith('image/')) {
+          const img = document.createElement('img');
+          img.src = URL.createObjectURL(f);
+          img.className = 'attach-preview-media';
+          box.appendChild(img);
+        } else if ((f.type || '').startsWith('video/')) {
+          const v = document.createElement('video');
+          v.controls = true;
+          v.src = URL.createObjectURL(f);
+          v.className = 'attach-preview-media';
+          box.appendChild(v);
+        }
+        const t = document.createElement('div');
+        t.className = 'hint';
+        t.textContent = f.name;
+        box.appendChild(t);
+        previewEl.appendChild(box);
+      });
+    }
+    function syncPushUi() {
+      const needFile = pushMediaType.value !== 'text';
+      pushFileSide.style.display = needFile ? 'block' : 'none';
+      if (pushMediaType.value === 'photo') pushAttach.accept = 'image/*';
+      else if (pushMediaType.value === 'video') pushAttach.accept = 'video/*';
+      else pushAttach.accept = '';
+      if (!needFile) {
+        pushAttach.value = '';
+        pushAttachName.textContent = 'Без вкладення';
+        previewEl.innerHTML = '';
+      }
+    }
+    pushMediaType.addEventListener('change', syncPushUi);
+    if (pushAttach && pushAttachName) {
+      pushAttach.addEventListener('change', function() {
+        const files = pushAttach.files ? Array.from(pushAttach.files) : [];
+        updateAttachUi(files);
+      });
+    }
+    pushClip.addEventListener('click', function() {
+      pushClipList.style.display = pushClipList.style.display === 'flex' ? 'none' : 'flex';
+    });
+    pushClipList.querySelectorAll('button[data-type]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        pushMediaType.value = btn.getAttribute('data-type');
+        pushClipList.style.display = 'none';
+        syncPushUi();
+        pushAttach.click();
+      });
+    });
+    syncPushUi();
+  </script>
+</body>
+</html>

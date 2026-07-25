@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Дашборд — Academy Essence</title>
+  {% include "_admin_design_system.html" %}
+  <style>
+    .attach-row { display: flex; align-items: flex-start; gap: 8px; }
+    .file-side { width: 220px; flex-shrink: 0; }
+    .file-side input[type="file"] { width: 100%; }
+    .attach-name { margin-top: 4px; font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .clip-wrap { display: inline-flex; margin-left: 8px; }
+  </style>
+</head>
+<body>
+
+  <!-- Summary Stats -->
+  <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+    <div class="stat-card">
+      <div class="cb-stat-label">Користувачi</div>
+      <div class="cb-stat-value">{{ stats.users }}</div>
+      <div class="cb-stat-sub">Всього в базi</div>
+    </div>
+    <div class="stat-card">
+      <div class="cb-stat-label">Учасники</div>
+      <div class="cb-stat-value" style="color: var(--color-success);">{{ stats.members }}</div>
+      <div class="cb-stat-sub">Активнi пiдписники</div>
+    </div>
+    <div class="stat-card">
+      <div class="cb-stat-label">Лiди</div>
+      <div class="cb-stat-value" style="color: var(--color-info);">{{ stats.leads }}</div>
+      <div class="cb-stat-sub">В обробцi</div>
+    </div>
+    <div class="stat-card">
+      <div class="cb-stat-label">Гостi</div>
+      <div class="cb-stat-value" style="color: var(--color-accent);">{{ stats.guests }}</div>
+      <div class="cb-stat-sub">Разовi вiдвiдувачi</div>
+    </div>
+    <div class="stat-card">
+      <div class="cb-stat-label">Анкети</div>
+      <div class="cb-stat-value" style="color: var(--color-warning);">{{ stats.applications }}</div>
+      <div class="cb-stat-sub">На розглядi</div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title">
+        <i data-lucide="zap"></i>
+        Швидкi дii
+      </div>
+    </div>
+    <div class="nav-pills">
+      <a href="/admin/broadcast?token={{ token }}"><i data-lucide="megaphone"></i> Розсилка</a>
+      <a href="/admin/applications?token={{ token }}"><i data-lucide="clipboard-list"></i> Анкети</a>
+      <a href="/admin/funnel?token={{ token }}"><i data-lucide="filter"></i> Воронка</a>
+      <a href="/admin/live-chats?token={{ token }}"><i data-lucide="users"></i> Живі чати</a>
+      <a href="/admin/support?token={{ token }}"><i data-lucide="message-circle"></i> Пiдтримка</a>
+      <a href="/admin/bot-menu?token={{ token }}"><i data-lucide="bot"></i> Меню бота</a>
+      <a href="/admin/import?token={{ token }}"><i data-lucide="upload"></i> Iмпорт Excel</a>
+    </div>
+  </div>
+
+  <!-- Broadcast -->
+  <div class="card">
+    <div class="cb-card-header">
+      <div class="cb-card-title"><i data-lucide="megaphone"></i> Розсилка</div>
+    </div>
+    <form method="post" action="/admin/broadcast/send" id="broadcast-form" enctype="multipart/form-data">
+      <input type="hidden" name="token" value="{{ token }}" />
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Сегмент</label>
+          <select name="segment">
+            <option value="all">Усi</option>
+            <option value="members">Учасники</option>
+            <option value="guests">Гостi</option>
+            <option value="event_guests">Гості події</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Подiя (для сегменту подiї)</label>
+          <select name="event_id">
+            <option value="">— оберiть —</option>
+            {% for e in events %}
+            <option value="{{ e.id }}">{{ e.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Тип повідомлення</label>
+        <div style="display:flex;align-items:center;">
+          <select id="msg-type-select" name="msg_type">
+            <option value="text">Тільки текст</option>
+            <option value="photo">Фото + текст</option>
+            <option value="video">Відео + текст</option>
+            <option value="document">Файл + текст</option>
+          </select>
+          <div class="clip-wrap">
+            <button type="button" id="dash-clip" class="btn">📎</button>
+          </div>
+        </div>
+        <div id="dash-clip-list" style="display:none;gap:6px;flex-wrap:wrap;margin:6px 0;">
+          <button type="button" class="btn btn-small" data-type="photo">Фото</button>
+          <button type="button" class="btn btn-small" data-type="video">Відео</button>
+          <button type="button" class="btn btn-small" data-type="document">Файл</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Текст повідомлення</label>
+        <div class="attach-row">
+          <textarea name="message" required placeholder="Введіть текст розсилки..."></textarea>
+          <div id="dash-file-side" class="file-side" style="display:none;">
+            <label for="dash-bc-attach">Виберіть файл(и)</label>
+            <input id="dash-bc-attach" type="file" name="attachment_files" multiple />
+          </div>
+        </div>
+        <div id="dash-bc-attach-name" class="attach-name">Без вкладення</div>
+        <div id="dash-bc-attach-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;"></div>
+      </div>
+      <div class="btn-row">
+        <button type="submit" class="btn btn-primary"><i data-lucide="send"></i> Надіслати</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Two-column layout: Events + Create Event -->
+  <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+
+    <!-- Create Event -->
+    <div class="card">
+      <div class="cb-card-header">
+        <div class="cb-card-title">
+          <i data-lucide="calendar-plus"></i>
+          Створити подiю
+        </div>
+      </div>
+      <form method="post" action="/admin/events/create" enctype="multipart/form-data">
+        <input type="hidden" name="token" value="{{ token }}" />
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Назва подii</label>
+            <input type="text" name="title" placeholder="Назва" required />
+          </div>
+          <div class="form-row">
+            <label>Дата та час</label>
+            <input type="datetime-local" name="starts_at" required />
+          </div>
+          <div class="form-row">
+            <label>Цiна для гостя (грн)</label>
+            <input type="number" name="guest_price_uah" value="2" required min="0" />
+          </div>
+          <div class="form-row">
+            <label>Цiна для лiда (грн)</label>
+            <input type="number" name="lead_price_uah" value="2" required min="0" />
+          </div>
+          <div class="form-row">
+            <label>Цiна для учасника (грн)</label>
+            <input type="number" name="member_price_uah" value="1" min="0" />
+          </div>
+          <div class="form-row">
+            <label>Цiна зі знижкою для гостя (грн, опцiйно)</label>
+            <input type="number" name="guest_discount_price_uah" min="0" />
+          </div>
+          <div class="form-row">
+            <label>Цiна зі знижкою для лiда (грн, опцiйно)</label>
+            <input type="number" name="lead_discount_price_uah" min="0" />
+          </div>
+          <div class="form-row">
+            <label>Цiна зі знижкою для учасника (грн, опцiйно)</label>
+            <input type="number" name="member_discount_price_uah" min="0" />
+          </div>
+          <div class="form-row">
+            <label>Тип</label>
+            <select name="event_type">
+              <option value="open">Вiдкрита</option>
+              <option value="closed">Закрита</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label>Локацiя / адреса</label>
+            <input type="text" name="location" placeholder="Мiсце проведення" />
+          </div>
+          <div class="form-row">
+            <label>Посилання Zoom</label>
+            <input type="text" name="zoom_url" placeholder="https://zoom.us/..." />
+          </div>
+          <div class="form-row">
+            <label>Лiмiт мiсць (0 = без лiмiту)</label>
+            <input type="number" name="seats_limit" value="0" min="0" />
+          </div>
+          <div class="form-row">
+            <label>Посилання оплати для гостя (опцiйно)</label>
+            <input type="text" name="wayforpay_guest_url" placeholder="https://... або шаблон з {order_ref}" />
+          </div>
+          <div class="form-row">
+            <label>Посилання оплати для учасника (опцiйно)</label>
+            <input type="text" name="wayforpay_member_url" placeholder="https://... або шаблон з {order_ref}" />
+          </div>
+          <div class="form-row">
+            <label>Посилання оплати для лiда (опцiйно)</label>
+            <input type="text" name="wayforpay_lead_url" placeholder="https://... або шаблон з {order_ref}" />
+          </div>
+          <div class="form-row">
+            <label>Фото подii</label>
+            <input type="file" name="photo_file" accept="image/*" />
+          </div>
+          <div class="form-row">
+            <label>Вiдео подii</label>
+            <input type="file" name="video_file" accept="video/*" />
+          </div>
+        </div>
+        <div class="form-row">
+          <label>Опис</label>
+          <textarea name="description" rows="2" placeholder="Опис подii"></textarea>
+        </div>
+        <div class="form-row">
+          <label>Лист очiкування при повних мiсцях</label>
+          <select name="waitlist_enabled">
+            <option value="1" selected>Так</option>
+            <option value="0">Нi</option>
+          </select>
+          <p class="hint">Якщо мiсця закiнчились, користувач зможе приеднатись до черги; при звiльненнi — сповiщення.</p>
+        </div>
+        <div class="form-grid">
+          <div class="form-row">
+            <label>Нагадування ~40 год (RSVP), опцiйно</label>
+            <textarea name="msg_rsvp_40h" rows="2" placeholder="Порожньо — глобальний шаблон"></textarea>
+          </div>
+          <div class="form-row">
+            <label>Нагадування ~24 год, опцiйно</label>
+            <textarea name="msg_remind_24h" rows="2" placeholder="Порожньо — глобальний шаблон"></textarea>
+          </div>
+          <div class="form-row">
+            <label>Нагадування ~3 год, опцiйно</label>
+            <textarea name="msg_remind_3h" rows="2" placeholder="Порожньо — глобальний шаблон"></textarea>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button type="submit" class="btn btn-primary"><i data-lucide="plus-circle"></i> Створити подiю</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Upcoming Events -->
+    <div class="card">
+      <div class="cb-card-header">
+        <div class="cb-card-title">
+          <i data-lucide="calendar"></i>
+          Найближчi подii
+        </div>
+        <span class="badge badge-primary">{{ events|length }}</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Назва</th>
+              <th>Дата</th>
+              <th>Тип</th>
+              <th>Цiна гiсть</th>
+              <th>Цiна учасник</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in events %}
+            <tr>
+              <td><code>{{ e.id }}</code></td>
+              <td><strong>{{ e.title }}</strong></td>
+              <td>{{ e.starts_at|dt_kyiv }}</td>
+              <td><span class="badge badge-info">{{ e.event_type }}</span></td>
+              <td>{{ e.guest_price_uah }} грн</td>
+              <td>{{ e.member_price_uah }} грн</td>
+              <td><a href="/admin/events/{{ e.id }}?token={{ token }}" class="btn btn-small btn-primary"><i data-lucide="edit-3"></i> Деталi</a></td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7">Немае подiй</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if archived %}
+    <!-- Archived Events -->
+    <div class="card">
+      <div class="cb-card-header">
+        <div class="cb-card-title">
+          <i data-lucide="archive"></i>
+          Архiв подiй
+        </div>
+        <span class="badge badge-info">{{ archived|length }}</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Назва</th><th>Дата</th><th></th></tr></thead>
+          <tbody>
+            {% for e in archived %}
+            <tr>
+              <td><code>{{ e.id }}</code></td>
+              <td>{{ e.title }}</td>
+              <td>{{ e.starts_at|dt_kyiv }}</td>
+              <td>
+                <div class="form-actions-row" style="margin-top:0;">
+                  <a href="/admin/events/{{ e.id }}?token={{ token }}" class="btn btn-small">Деталi</a>
+                  <form method="post" action="/admin/events/{{ e.id }}/restore" style="display:inline-flex;align-items:center;gap:6px;">
+                    <input type="hidden" name="token" value="{{ token }}" />
+                    <input type="datetime-local" name="starts_at" value="{{ e.starts_at|dt_input_kyiv if e.starts_at else '' }}" required style="width:180px;" />
+                    <button type="submit" class="btn btn-small btn-green">Відновити</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Last Users -->
+    <div class="card">
+      <div class="cb-card-header">
+        <div class="cb-card-title">
+          <i data-lucide="users"></i>
+          Останнi користувачi
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>ПIБ</th>
+              <th>Телефон</th>
+              <th>Email</th>
+              <th>Роль</th>
+              <th>Дii</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in users %}
+            <tr>
+              <td><code>{{ u.id }}</code></td>
+              <td><strong>{{ u.full_name or '—' }}</strong></td>
+              <td>{{ u.phone or '—' }}</td>
+              <td>{{ u.email or '—' }}</td>
+              <td>
+                <form method="post" action="/admin/users/{{ u.id }}/role" style="display:inline-flex;align-items:center;gap:6px;">
+                  <input type="hidden" name="token" value="{{ token }}" />
+                  <select name="role" onchange="this.form.submit()" style="width:auto;min-width:110px;">
+                    <option value="guest" {% if u.role=='guest' %}selected{% endif %}>Гiсть</option>
+                    <option value="lead" {% if u.role=='lead' %}selected{% endif %}>Лiд</option>
+                    <option value="member" {% if u.role=='member' %}selected{% endif %}>Учасник</option>
+                  </select>
+                </form>
+              </td>
+              <td>
+                <a href="/admin/push?token={{ token }}&user_id={{ u.id }}" class="btn btn-small"><i data-lucide="send"></i> Пуш</a>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6">Немае користувачiв</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Export Block -->
+    <div class="card">
+      <div class="cb-card-header">
+        <div class="cb-card-title">
+          <i data-lucide="download"></i>
+          Експорт бази
+        </div>
+      </div>
+      <p class="hint" style="margin-bottom: 12px;">Завантажте базу у форматi Excel (.xlsx)</p>
+      <div class="btn-row">
+        <a href="/admin/export?token={{ token }}&segment=all" class="btn"><i data-lucide="users"></i> Усi</a>
+        <a href="/admin/export?token={{ token }}&segment=members" class="btn btn-green"><i data-lucide="crown"></i> Учасники</a>
+        <a href="/admin/export?token={{ token }}&segment=guests" class="btn"><i data-lucide="user"></i> Гостi</a>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    (function() {
+      var dashAttach = document.getElementById('dash-bc-attach');
+      var dashAttachName = document.getElementById('dash-bc-attach-name');
+      var dashFileSide = document.getElementById('dash-file-side');
+      var typeSel = document.getElementById('msg-type-select');
+      var clip = document.getElementById('dash-clip');
+      var clipList = document.getElementById('dash-clip-list');
+      var previewEl = document.getElementById('dash-bc-attach-preview');
+      if (!dashAttach || !dashAttachName || !dashFileSide || !typeSel || !clip || !clipList || !previewEl) return;
+      function setInputFiles(input, files) {
+        if (typeof DataTransfer === 'undefined') return;
+        var dt = new DataTransfer();
+        files.forEach(function(f) { dt.items.add(f); });
+        input.files = dt.files;
+      }
+      function updateAttachUi(files) {
+        if (!files.length) {
+          dashAttachName.textContent = 'Без вкладення';
+          previewEl.innerHTML = '';
+          return;
+        }
+        if (files.length === 1) dashAttachName.textContent = 'Вкладення: ' + files[0].name;
+        else dashAttachName.textContent = 'Вкладення: ' + files.length + ' файлів';
+        renderPreview(files);
+      }
+      function renderPreview(files) {
+        previewEl.innerHTML = '';
+        files.forEach(function(f, idx) {
+          var box = document.createElement('div');
+          box.className = 'attach-preview-item';
+          var removeBtn = document.createElement('button');
+          removeBtn.type = 'button';
+          removeBtn.className = 'attach-remove-btn';
+          removeBtn.textContent = '×';
+          removeBtn.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            var current = dashAttach.files ? Array.from(dashAttach.files) : [];
+            current.splice(idx, 1);
+            setInputFiles(dashAttach, current);
+            updateAttachUi(current);
+          };
+          box.appendChild(removeBtn);
+          if ((f.type || '').startsWith('image/')) {
+            var img = document.createElement('img');
+            img.src = URL.createObjectURL(f);
+            img.className = 'attach-preview-media';
+            box.appendChild(img);
+          } else if ((f.type || '').startsWith('video/')) {
+            var v = document.createElement('video');
+            v.controls = true;
+            v.src = URL.createObjectURL(f);
+            v.className = 'attach-preview-media';
+            box.appendChild(v);
+          }
+          var t = document.createElement('div');
+          t.className = 'hint';
+          t.textContent = f.name;
+          box.appendChild(t);
+          previewEl.appendChild(box);
+        });
+      }
+      function sync() {
+        var need = typeSel.value !== 'text';
+        dashFileSide.style.display = need ? 'block' : 'none';
+        if (typeSel.value === 'photo') dashAttach.accept = 'image/*';
+        else if (typeSel.value === 'video') dashAttach.accept = 'video/*';
+        else dashAttach.accept = '';
+        if (!need) {
+          dashAttach.value = '';
+          dashAttachName.textContent = 'Без вкладення';
+          previewEl.innerHTML = '';
+        }
+      }
+      dashAttach.addEventListener('change', function() {
+        var files = dashAttach.files ? Array.from(dashAttach.files) : [];
+        updateAttachUi(files);
+      });
+      clip.addEventListener('click', function() {
+        clipList.style.display = clipList.style.display === 'flex' ? 'none' : 'flex';
+      });
+      clipList.querySelectorAll('button[data-type]').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          typeSel.value = btn.getAttribute('data-type');
+          clipList.style.display = 'none';
+          sync();
+          dashAttach.click();
+        });
+      });
+      typeSel.addEventListener('change', sync);
+      sync();
+    })();
+  </script>
+</body>
+</html>

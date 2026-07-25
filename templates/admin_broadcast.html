@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Розсилка — Community Bot</title>
+  {% include "_admin_design_system.html" %}
+  <style>
+    .attach-row { display: flex; align-items: flex-start; gap: 8px; }
+    .file-side { width: 220px; flex-shrink: 0; }
+    .file-side input[type="file"] { width: 100%; }
+    .attach-name { margin-top: 4px; font-size: 11px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .clip-wrap { display: inline-flex; margin-left: 8px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Сегментована розсилка</h1>
+    <p>Надiслати повiдомлення обранiй групi користувачiв</p>
+  </div>
+
+  <div class="card">
+    <form method="post" action="/admin/broadcast/send" enctype="multipart/form-data">
+      <input type="hidden" name="token" value="{{ token }}" />
+
+      <div class="form-grid">
+        <div class="form-row">
+          <label><i data-lucide="users" style="width:12px;height:12px;vertical-align:-1px;"></i> Сегмент</label>
+          <select name="segment">
+            <option value="all">Усi користувачi</option>
+            <option value="members">Тiльки Учасники</option>
+            <option value="guests">Тiльки Гостi</option>
+            <option value="leads">Лiди (роль lead)</option>
+            <option value="event_guests">Усi з реестрацiею на подiю</option>
+            <option value="event_unpaid">Подiя — не оплатили</option>
+            <option value="event_paid_no_rsvp">Подiя — оплатили, без «Буду/Не буду»</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label><i data-lucide="calendar" style="width:12px;height:12px;vertical-align:-1px;"></i> Подiя (для сегментiв по подii)</label>
+          <select name="event_id">
+            <option value="">— оберiть —</option>
+            {% for e in events %}
+            <option value="{{ e.id }}">{{ e.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label><i data-lucide="filter" style="width:12px;height:12px;vertical-align:-1px;"></i> Лiмiт одержувачiв за Telegram numeric id (опцiйно)</label>
+        <textarea name="restrict_tg_ids" rows="3" placeholder="Один id на рядок або через кому. Залиште порожнiм — усi з обраного сегменту."></textarea>
+        <p class="hint">Перетин: спочатку формуеться сегмент, потiм лишаються лише вказанi id</p>
+      </div>
+
+      <div class="form-row">
+        <label><i data-lucide="message-square" style="width:12px;height:12px;vertical-align:-1px;"></i> Тип повiдомлення</label>
+        <div style="display:flex;align-items:center;">
+          <select name="msg_type" id="msg-type">
+            <option value="text">Тiльки текст</option>
+            <option value="photo">Фото + текст</option>
+            <option value="video">Вiдео + текст</option>
+            <option value="document">Файл + текст</option>
+          </select>
+          <div class="clip-wrap">
+            <button type="button" id="bc-clip" class="btn">📎</button>
+          </div>
+        </div>
+        <div id="bc-clip-list" style="display:none;gap:6px;flex-wrap:wrap;margin:6px 0;">
+          <button type="button" class="btn btn-small" data-type="photo">Фото</button>
+          <button type="button" class="btn btn-small" data-type="video">Відео</button>
+          <button type="button" class="btn btn-small" data-type="document">Файл</button>
+        </div>
+      </div>
+
+      <div id="media-row" style="display:none;">
+        <div class="form-grid">
+          <div class="form-row">
+            <label><i data-lucide="image" style="width:12px;height:12px;vertical-align:-1px;"></i> Фото (файл)</label>
+            <input type="file" name="photo_file" accept="image/*" />
+          </div>
+          <div class="form-row">
+            <label><i data-lucide="video" style="width:12px;height:12px;vertical-align:-1px;"></i> Вiдео (файл)</label>
+            <input type="file" name="video_file" accept="video/*" />
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label><i data-lucide="type" style="width:12px;height:12px;vertical-align:-1px;"></i> Текст повiдомлення</label>
+        <div class="attach-row">
+          <textarea name="message" rows="5" required placeholder="Введiть текст розсилки..."></textarea>
+          <div id="bc-file-side" class="file-side" style="display:none;">
+            <label for="bc-attach">Виберіть файл(и)</label>
+            <input id="bc-attach" type="file" name="attachment_files" multiple />
+          </div>
+        </div>
+        <div id="bc-attach-name" class="attach-name">Без вкладення</div>
+        <div id="bc-attach-preview" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;"></div>
+        <p class="hint">Telegram: до 4096 символiв для тексту, ~1024 для пiдпису до медiа</p>
+      </div>
+
+      <div class="btn-row">
+        <button type="submit" class="btn btn-primary"><i data-lucide="send"></i> Надiслати розсилку</button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    document.getElementById('msg-type').onchange = function() {
+      document.getElementById('media-row').style.display = (this.value === 'photo' || this.value === 'video') ? 'block' : 'none';
+    };
+    const bcAttach = document.getElementById('bc-attach');
+    const bcAttachName = document.getElementById('bc-attach-name');
+    const bcType = document.getElementById('msg-type');
+    const bcFileSide = document.getElementById('bc-file-side');
+    const bcClip = document.getElementById('bc-clip');
+    const bcClipList = document.getElementById('bc-clip-list');
+    const previewEl = document.getElementById('bc-attach-preview');
+    function setInputFiles(input, files) {
+      if (typeof DataTransfer === 'undefined') return;
+      const dt = new DataTransfer();
+      files.forEach(f => dt.items.add(f));
+      input.files = dt.files;
+    }
+    function updateAttachUi(files) {
+      if (!files.length) {
+        bcAttachName.textContent = 'Без вкладення';
+        previewEl.innerHTML = '';
+        return;
+      }
+      if (files.length === 1) bcAttachName.textContent = 'Вкладення: ' + files[0].name;
+      else bcAttachName.textContent = 'Вкладення: ' + files.length + ' файлів';
+      renderPreview(files);
+    }
+    function renderPreview(files) {
+      previewEl.innerHTML = '';
+      files.forEach(function(f, idx) {
+        const box = document.createElement('div');
+        box.className = 'attach-preview-item';
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'attach-remove-btn';
+        removeBtn.textContent = '×';
+        removeBtn.onclick = function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          const current = bcAttach.files ? Array.from(bcAttach.files) : [];
+          current.splice(idx, 1);
+          setInputFiles(bcAttach, current);
+          updateAttachUi(current);
+        };
+        box.appendChild(removeBtn);
+        if ((f.type || '').startsWith('image/')) {
+          const img = document.createElement('img');
+          img.src = URL.createObjectURL(f);
+          img.className = 'attach-preview-media';
+          box.appendChild(img);
+        } else if ((f.type || '').startsWith('video/')) {
+          const v = document.createElement('video');
+          v.controls = true;
+          v.src = URL.createObjectURL(f);
+          v.className = 'attach-preview-media';
+          box.appendChild(v);
+        }
+        const t = document.createElement('div');
+        t.className = 'hint';
+        t.textContent = f.name;
+        box.appendChild(t);
+        previewEl.appendChild(box);
+      });
+    }
+    function syncBroadcastUi() {
+      const needFile = bcType.value !== 'text';
+      bcFileSide.style.display = needFile ? 'block' : 'none';
+      if (bcType.value === 'photo') bcAttach.accept = 'image/*';
+      else if (bcType.value === 'video') bcAttach.accept = 'video/*';
+      else bcAttach.accept = '';
+      if (!needFile) {
+        bcAttach.value = '';
+        bcAttachName.textContent = 'Без вкладення';
+        previewEl.innerHTML = '';
+      }
+      document.getElementById('media-row').style.display = (bcType.value === 'photo' || bcType.value === 'video') ? 'block' : 'none';
+    }
+    bcAttach.addEventListener('change', function() {
+      const files = bcAttach.files ? Array.from(bcAttach.files) : [];
+      updateAttachUi(files);
+    });
+    bcClip.addEventListener('click', function() {
+      bcClipList.style.display = bcClipList.style.display === 'flex' ? 'none' : 'flex';
+    });
+    bcClipList.querySelectorAll('button[data-type]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        bcType.value = btn.getAttribute('data-type');
+        bcClipList.style.display = 'none';
+        syncBroadcastUi();
+        bcAttach.click();
+      });
+    });
+    bcType.onchange = syncBroadcastUi;
+    syncBroadcastUi();
+  </script>
+</body>
+</html>
