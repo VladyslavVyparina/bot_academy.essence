@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+HEAD
 # Academy Essence — Telegram Community Bot
 
 A FastAPI-based Telegram bot and admin panel for community event registration, payments, support chats, and CRM sync.
