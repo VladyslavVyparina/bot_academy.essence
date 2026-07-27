@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Academy Essence — Telegram Community Bot
 
 A FastAPI-based Telegram bot and admin panel for community event registration, payments, support chats, and CRM sync.
@@ -188,3 +189,6 @@ pgrep -af "uvicorn app.main:app"
 - Do not store production tokens in the repository.
 - Rotate Telegram / WayForPay / SendPulse credentials if they were ever shared.
 - For production: HTTPS, restricted admin IDs, backups, and log monitoring.
+=======
+# bot_academy.essence
+>>>>>>> aa1f8739a60d2e097cfe9c015cce1490e9faceef
